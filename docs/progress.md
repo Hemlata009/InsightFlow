@@ -11,9 +11,10 @@
 - 2026-11-21: **Phase 1, Step 2: rule book**: layered configs + validated loader ([data-dictionary.md](data-dictionary.md)), 68 tests passing
 - 2026-11-21: **Phase 1, Step 3: ingestion**: safe CSV/Excel reader, 9 edge-case checklist items done, 99 tests passing
 - 2026-11-21: **Phase 1, Step 4: profiling**: health report finds every planted issue with exact counts, 138 tests passing
+- 2026-11-21: **Phase 1, Step 5: normalization**: numbers/dates/text/headers standardized and logged, 190 tests passing
 
 ## Current
-Phase 1, Step 5: **normalization** (numbers, dates, text, headers)
+Phase 1, Step 6: **cleaning** (missing values, duplicates, quarantine)
 
 ## Next
-Step 6: cleaning (missing values, duplicates, quarantine)
+Step 7: validation (schema + business rules)

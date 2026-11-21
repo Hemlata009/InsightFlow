@@ -36,14 +36,20 @@ def plain(v: float) -> str:
     return format(float(v), ".10g")
 
 
+def _decimals(v: float) -> int:
+    """Decimals needed to write v exactly (at least 2), so formatting never rounds the true value."""
+    text = plain(v)
+    return max(2, len(text.split(".")[1]) if "." in text else 0)
+
+
 def group_international(v: float) -> str:
-    return f"{v:,.2f}"
+    return f"{v:,.{_decimals(v)}f}"
 
 
 def group_indian(v: float) -> str:
     """1234567.5 -> '12,34,567.50' (lakh/crore grouping)."""
     sign = "-" if v < 0 else ""
-    whole, frac = f"{abs(v):.2f}".split(".")
+    whole, frac = f"{abs(v):.{_decimals(v)}f}".split(".")
     if len(whole) > 3:
         head, tail = whole[:-3], whole[-3:]
         parts = []
@@ -63,7 +69,7 @@ def with_magnitude(v: float, grouping: str) -> str:
         scale, suffix = ((1e7, " Cr") if a >= 1e7 else (1e5, " L") if a >= 1e5 else (1e3, "K"))
     else:
         scale, suffix = ((1e6, "M") if a >= 1e6 else (1e3, "K"))
-    decimals = 2 + int(round(np.log10(scale)))
+    decimals = _decimals(v) + int(round(np.log10(scale)))
     text = f"{v / scale:.{decimals}f}".rstrip("0").rstrip(".")
     return f"{text}{suffix}"
 

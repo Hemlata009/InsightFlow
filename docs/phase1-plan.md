@@ -31,8 +31,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 2 | `configs/` | Layered rule book + validated loader (`insightflow.config`) | ✅ done |
 | 3 | `ingestion` | Safe CSV/Excel reader + file metadata + repeat-upload registry | ✅ done |
 | 4 | `profiling` | Column-level health report before changes (patterns, ranges, duplicates) | ✅ done |
-| 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ⏳ next |
-| 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | |
+| 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ✅ done |
+| 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | ⏳ next |
 | 7 | `validation` | Pandera schema from config + business rules | |
 | 8 | `audit` | cleaning_log, quality_report, metadata, result object | |
 | 9 | `pipeline` | End-to-end run + idempotency test | |
@@ -51,22 +51,22 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Same file uploaded again (hash match)
 
 ### Step 5: Normalization
-- [ ] Column names: whitespace, casing, map to canonical names
-- [ ] Null markers: NA, N/A, NULL, -, empty string
-- [ ] Indian vs international grouping: 1,00,000 vs 100,000
-- [ ] Decimal separators: 1.234,56 vs 1,234.56 (per locale config)
-- [ ] Magnitudes: K, M, B, L, Lakh, Cr, Crore
-- [ ] Accounting negatives: (1,000)
-- [ ] Percentages: 10% vs 0.10
-- [ ] Currency symbols/codes stripped and recorded; `$` ambiguity flagged
-- [ ] NaN, Infinity, malformed numbers → flagged
-- [ ] Dates: DMY vs MDY ambiguity resolved by config, otherwise flagged
-- [ ] ISO and local date formats mixed
-- [ ] Excel serial dates
-- [ ] Invalid dates; dates outside the business range
-- [ ] Booleans: Yes/No, Y/N, 1/0
-- [ ] IDs keep leading zeros (read as text)
-- [ ] Mixed types in one column
+- [x] Column names: whitespace, casing, map to canonical names
+- [x] Null markers: NA, N/A, NULL, -, empty string
+- [x] Indian vs international grouping: 1,00,000 vs 100,000
+- [x] Decimal separators: 1.234,56 vs 1,234.56 (per locale config)
+- [x] Magnitudes: K, M, B, L, Lakh, Cr, Crore
+- [x] Accounting negatives: (1,000)
+- [x] Percentages: 10% vs 0.10
+- [x] Currency symbols/codes stripped and recorded; `$` ambiguity flagged
+- [x] NaN, Infinity, malformed numbers → flagged
+- [x] Dates: DMY vs MDY ambiguity resolved by config, otherwise flagged
+- [x] ISO and local date formats mixed
+- [x] Excel serial dates
+- [x] Invalid dates (dates outside the business range → Step 7 rule)
+- [x] Booleans: Yes/No, Y/N, 1/0
+- [x] IDs keep leading zeros (read as text)
+- [x] Mixed types in one column
 
 ### Step 6: Cleaning
 - [ ] Meaningful missing (zero vs unknown) per column policy

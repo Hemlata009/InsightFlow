@@ -54,6 +54,8 @@ def natural_issues(raw: pd.DataFrame) -> list[dict]:
     dup_rows = int(raw.drop(columns="Row ID").duplicated().sum())
     dup_keys = int(raw.duplicated(["Order ID", "Product ID"]).sum())
     short_zip = int((raw["Postal Code"].str.len() < 5).sum())
+    nbsp = int(raw.select_dtypes(include=["object", "string"]).apply(
+        lambda c: c.astype("string").str.contains(" ", regex=False)).any(axis=1).sum())
     return [
         {"issue_type": "encoding", "detail": "Raw file is cp1252 (Windows-1252), not UTF-8",
          "expected_action": "detect_encoding"},
@@ -66,6 +68,9 @@ def natural_issues(raw: pd.DataFrame) -> list[dict]:
         {"issue_type": "leading_zero_lost", "count": short_zip,
          "detail": "Postal codes with fewer than 5 digits (e.g. 1040 should be 01040); column excluded from schema",
          "expected_action": "read_ids_as_text"},
+        {"issue_type": "non_breaking_space", "count": nbsp,
+         "detail": "Invisible non-breaking spaces (U+00A0) inside text, e.g. product names; truth keeps them",
+         "expected_action": "normalize_whitespace"},
     ]
 
 

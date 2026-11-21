@@ -18,6 +18,7 @@ policies:
   magnitude_suffixes: true          # 15K, 2.5M, 1.2 L, 3 Cr (per locale)
   invalid_value_action: quarantine  # bad values are set aside with a reason, never deleted
   max_quarantine_share: 0.20        # above this share of rows -> status needs_review
+  max_file_mb: 50                   # larger input files are refused (low-RAM PC; chunking comes later)
 
 duplicates:
   exact: drop                       # identical rows (after normalization): keep the first, log the rest

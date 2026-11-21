@@ -40,10 +40,13 @@ class ColumnSpec(Strict):
     max: float | None = None
     allowed_values: list[str] | None = None
     aliases: list[str] = Field(default_factory=list)
+    normalize_case: bool = False      # "NORTH"/" north " -> the known/most common spelling
     description: str = ""
 
     @model_validator(mode="after")
     def _check(self):
+        if self.normalize_case and self.type != "string":
+            raise ValueError(f"{self.name}: normalize_case only applies to string columns")
         if self.min is not None and self.max is not None and self.min > self.max:
             raise ValueError(f"{self.name}: min {self.min} > max {self.max}")
         if self.missing_policy == "fill_value" and self.fill_value is None:
@@ -103,6 +106,7 @@ class Policies(Strict):
     magnitude_suffixes: bool = True
     invalid_value_action: Literal["quarantine"] = "quarantine"
     max_quarantine_share: float = Field(0.2, ge=0, le=1)
+    max_file_mb: float = Field(50, gt=0)
 
 
 class DuplicatePolicy(Strict):

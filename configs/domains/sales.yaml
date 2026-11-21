@@ -27,6 +27,7 @@ columns:
     description: Customer identifier. Always text (keeps leading zeros).
   Product:
     type: string
+    normalize_case: true
     required: true
     nullable: false
     missing_policy: quarantine
@@ -34,12 +35,14 @@ columns:
     description: Product name.
   Category:
     type: string
+    normalize_case: true
     required: true
     missing_policy: keep_and_flag
     aliases: [category, product_category]
     description: Product category. Allowed values are set per dataset.
   Region:
     type: string
+    normalize_case: true
     required: true
     missing_policy: keep_and_flag
     aliases: [region, sales_region, zone]
@@ -83,16 +86,19 @@ columns:
     description: Line profit. Negative = a real loss (valid, not an error).
   Sub_Category:
     type: string
+    normalize_case: true
     required: false
     aliases: [sub_category, subcategory]
     description: Optional finer product grouping.
   Segment:
     type: string
+    normalize_case: true
     required: false
     aliases: [segment, customer_segment]
     description: Optional customer segment.
   State:
     type: string
+    normalize_case: true
     required: false
     aliases: [state, province]
     description: Optional state/province.
