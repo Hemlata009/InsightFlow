@@ -128,10 +128,16 @@ def test_missing_dataset_config():
     (lambda d: d["columns"]["Sales"].update(derive_expression="Quantity * Price"), "unknown column"),
     (lambda d: d["columns"]["Sales"].update(derive_expression="Sales * 2"), "refers to itself"),
     (lambda d: d["columns"]["Sales"].update(derive_expression="__import__('os')"), "may only use"),
-    (lambda d: d["columns"]["Region"].update(allowed_values=[]), "empty"),
     (lambda d: d["columns"]["Quantity"].update(normalize_case=True), "only applies to string"),
 ])
 def test_conflicting_rules_rejected(config_copy, change, message):
     _edit(config_copy / "domains" / "sales.yaml", change)
     with pytest.raises(ValidationError, match=message):
+        load_dataset_config("SALES_002", config_copy)
+
+
+def test_empty_allowed_values_rejected(config_copy):
+    # the dataset layer sets Region's allowed values, so the mistake must be made there
+    _edit(config_copy / "datasets" / "SALES_002.yaml", lambda d: d["columns"]["Region"].update(allowed_values=[]))
+    with pytest.raises(ValidationError, match="empty"):
         load_dataset_config("SALES_002", config_copy)
