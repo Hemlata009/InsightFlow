@@ -24,6 +24,7 @@ def test_health_and_datasets(client):
     assert client.get("/api/health").json()["status"] == "ok"
     ds = {d["dataset_id"]: d for d in client.get("/api/datasets").json()}
     assert ds["SALES_002"]["locale"] == "en_IN" and "sales_messy.xlsx" in ds["SALES_002"]["samples"]
+    assert "answer_key.json" not in ds["SALES_002"]["samples"]          # the answer sheet is not data
     assert ds["SALES_001"]["samples"] == []          # not copied into this test's data folder
 
 

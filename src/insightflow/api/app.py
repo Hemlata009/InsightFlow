@@ -31,6 +31,7 @@ TABLES = {"cleaned": ("processed", None), "quarantine": ("quarantine", "quaranti
           "duplicates": ("quarantine", "duplicates_removed.csv")}
 _ID = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 _run_lock = threading.Lock()
+NOT_DATA = {"answer_key.json"}     # sample folders also hold the answer key; it is not a data file
 
 
 class LabRequest(BaseModel):
@@ -89,7 +90,8 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
         for f in sorted((config_dir / "datasets").glob("*.yaml")):
             cfg = load_dataset_config(f.stem, config_dir)
             sdir = data_root / "sample" / f.stem
-            samples = sorted(p.name for p in sdir.glob("*") if p.suffix.lower() in ALLOWED_SUFFIXES) \
+            samples = sorted(p.name for p in sdir.glob("*") if p.suffix.lower() in ALLOWED_SUFFIXES
+                             and p.name not in NOT_DATA) \
                 if sdir.exists() else []
             out.append({"dataset_id": cfg.dataset_id, "domain": cfg.domain, "locale": cfg.locale_name,
                         "currency": cfg.locale.currency_code, "date_order": cfg.locale.date_order,
