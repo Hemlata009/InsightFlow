@@ -14,8 +14,18 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 - [Project overview](docs/project-overview.md): mission, vision, outcomes, architecture, tools, skills, phases
 - [Decision log](docs/decisions.md): every decision, one line each
 - [Discussions](docs/discussions/): one file per discussion, with the full reasoning
+- [Phase 1 plan](docs/phase1-plan.md): steps and the edge-case test backlog
 - [Progress](docs/progress.md): where we are now
 
 ## Status
 
-Phase 1 (data ingestion, profiling, cleaning, validation): **not started.** Next step is Milestone 1, dataset selection.
+Phase 1, Step 0 (setup) done. Next: Step 1, generate practice sales data.
+
+## Setup (Windows PowerShell)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+pytest
+```

@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 venv/
 .pytest_cache/
@@ -8,9 +9,14 @@ venv/
 # Secrets
 .env
 
-# Generated pipeline outputs
-data/processed/
-data/quarantine/
+# Data: keep folder placeholders, not the data itself
+# (raw files may be private; processed/quarantine are generated)
+data/raw/*
+data/processed/*
+data/quarantine/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/quarantine/.gitkeep
 
 # Editors / OS
 .vscode/
