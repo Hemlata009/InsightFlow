@@ -33,8 +33,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 4 | `profiling` | Column-level health report before changes (patterns, ranges, duplicates) | ✅ done |
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ✅ done |
 | 6 | `cleaning` | Missing values (quarantine/flag/fill/derive), duplicates, key conflicts → quarantine | ✅ done |
-| 7 | `validation` | Pandera schema from config + business rules | ⏳ next |
-| 8 | `audit` | cleaning_log, quality_report, metadata, result object | |
+| 7 | `validation` | Pandera schema from config + business rules (quarantine / flag) | ✅ done |
+| 8 | `audit` | cleaning_log, quality_report, metadata, result object | ⏳ next |
 | 9 | `pipeline` | End-to-end run + idempotency test | |
 
 ## Edge-case test backlog (each becomes a pytest test)
@@ -63,7 +63,7 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Dates: DMY vs MDY ambiguity resolved by config, otherwise flagged
 - [x] ISO and local date formats mixed
 - [x] Excel serial dates
-- [x] Invalid dates (dates outside the business range → Step 7 rule)
+- [x] Invalid dates; dates outside the business range (Step 7 rule `order_date_in_range`)
 - [x] Booleans: Yes/No, Y/N, 1/0
 - [x] IDs keep leading zeros (read as text)
 - [x] Mixed types in one column
@@ -76,12 +76,12 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Imputation is logged, and skipped for skewed columns by default
 
 ### Step 7: Validation & business rules
-- [ ] Required / optional / extra / missing columns
-- [ ] Negative sales = return (if allowed by config)
-- [ ] Negative profit = legitimate loss
-- [ ] Quantity zero/negative per returns policy
-- [ ] Sales ≈ Quantity × Unit_Price × (1 − Discount) consistency check
-- [ ] Conflicting rules detected
+- [x] Required / optional / extra / missing columns
+- [x] Negative sales = return (if allowed by config)
+- [x] Negative profit = legitimate loss
+- [x] Quantity zero/negative per returns policy
+- [x] Sales ≈ Quantity × Unit_Price × (1 − Discount) consistency check
+- [x] Conflicting rules detected
 
 ### Step 9: Pipeline
 - [ ] Re-run is idempotent

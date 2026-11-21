@@ -1,7 +1,7 @@
 """Load and validate the layered rule book: default -> domain -> dataset.
 
     cfg = load_dataset_config("SALES_002")
-    cfg.columns["Discount"].max      # 0.8
+    cfg.columns[name].max            # e.g. 0.8 for a discount column
     cfg.locale.date_order            # "DMY"
     cfg.header_map()                 # normalized alias -> canonical column name
 """

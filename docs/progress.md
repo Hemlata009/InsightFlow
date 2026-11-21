@@ -13,9 +13,10 @@
 - 2026-11-21: **Phase 1, Step 4: profiling**: health report finds every planted issue with exact counts, 138 tests passing
 - 2026-11-21: **Phase 1, Step 5: normalization**: numbers/dates/text/headers standardized and logged, 190 tests passing
 - 2026-11-21: **Phase 1, Step 6: cleaning**: missing-value policies, duplicates, key conflicts, quarantine
+- 2026-11-21: **Phase 1, Step 7: validation**: Pandera schema + config rules; finds exactly the planted rule-breakers
 
 ## Current
-Phase 1, Step 7: **validation** (schema + business rules)
+Phase 1, Steps 8–9: **audit outputs + full pipeline**
 
 ## Next
 Step 8: audit outputs; Step 9: full pipeline
