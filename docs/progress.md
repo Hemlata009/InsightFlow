@@ -14,9 +14,11 @@
 - 2026-11-21: **Phase 1, Step 5: normalization**: numbers/dates/text/headers standardized and logged, 190 tests passing
 - 2026-11-21: **Phase 1, Step 6: cleaning**: missing-value policies, duplicates, key conflicts, quarantine
 - 2026-11-21: **Phase 1, Step 7: validation**: Pandera schema + config rules; finds exactly the planted rule-breakers
+- 2026-11-21: **Phase 1, Steps 8–9: audit outputs + full pipeline**: messy files → truth in both datasets, idempotent, 256 tests passing
+- 2026-11-21: ✅ **Phase 1 complete** ([discussion 11](discussions/2026-11-21_11_phase1-steps5-9.md))
 
 ## Current
-Phase 1, Steps 8–9: **audit outputs + full pipeline**
+Review Phase 1 with the user: edge cases and further requirements
 
 ## Next
-Step 8: audit outputs; Step 9: full pipeline
+Phase 2: automated analytics, EDA and KPI engine (after the review)

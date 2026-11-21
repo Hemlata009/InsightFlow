@@ -24,3 +24,8 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Unreadable files fail with stable error codes; rows with the wrong field count are set aside in `bad_rows`, never dropped | [09](discussions/2026-11-21_09_ingestion.md) |
 | 2026-11-21 | Max input file 50 MB by default (low-RAM PC); chunked reading deferred | [09](discussions/2026-11-21_09_ingestion.md) |
 | 2026-11-21 | Profiler only observes: classifies value patterns and checks them against the rule book; converts nothing | [10](discussions/2026-11-21_10_profiling.md) |
+| 2026-11-21 | Derive formulas for missing values live in config (`derive_expression`), validated to columns/numbers/+-*/() only | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
+| 2026-11-21 | No domain column names in core code (enforced by a test); business switches are column min/max in dataset config | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
+| 2026-11-21 | Exact duplicates (after normalization) removed but saved with the row they duplicate; key conflicts only flagged | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
+| 2026-11-21 | Quarantine files keep the ORIGINAL text + reasons; flags count only for kept rows | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
+| 2026-11-21 | Phase 1 complete: ingest → profile → normalize → clean → validate → audit via `run_phase1()` | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |

@@ -22,9 +22,17 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 
 ## Status
 
-Phase 1: setup, local harness and Milestone 1 (sample datasets) , Step 2 (rule book) Step 3 (ingestion) and Step 4 (profiling) done. Next: Step 5, normalization.
+**Phase 1 complete**: data intake & quality engine (256 tests). Next: review, then Phase 2 (analytics & KPIs).
 
 > Run every dev task through the harness. See [CLAUDE.md](CLAUDE.md) and [docs/harness.md](docs/harness.md).
+
+## Run the Phase 1 pipeline
+
+```powershell
+.\.venv\Scripts\python -m harness run -- python -m insightflow.pipeline data/sample/SALES_002/sales_messy.xlsx SALES_002
+```
+Outputs: `data/processed/<ID>/` (cleaned CSV, quality report, cleaning log, metadata) and
+`data/quarantine/<ID>/` (rows set aside with reasons, removed duplicates).
 
 ## Setup (Windows PowerShell)
 

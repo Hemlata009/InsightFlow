@@ -34,8 +34,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ✅ done |
 | 6 | `cleaning` | Missing values (quarantine/flag/fill/derive), duplicates, key conflicts → quarantine | ✅ done |
 | 7 | `validation` | Pandera schema from config + business rules (quarantine / flag) | ✅ done |
-| 8 | `audit` | cleaning_log, quality_report, metadata, result object | ⏳ next |
-| 9 | `pipeline` | End-to-end run + idempotency test | |
+| 8 | `audit` | cleaning_log, quality_report, metadata, quarantine (original text), raw copy, registry | ✅ done |
+| 9 | `pipeline` | `run_phase1()` + CLI, statuses, end-to-end + idempotency tests | ✅ done |
 
 ## Edge-case test backlog (each becomes a pytest test)
 
@@ -84,9 +84,9 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Conflicting rules detected
 
 ### Step 9: Pipeline
-- [ ] Re-run is idempotent
-- [ ] Original values and source row numbers are kept
-- [ ] Log records which rule changed which value and why
+- [x] Re-run is idempotent
+- [x] Original values and source row numbers are kept
+- [x] Log records which rule changed which value and why
 
 ## Deferred (not in Phase 1 v1)
 JSON/JSONL/Parquet · nested JSON · currency conversion · timezones/DST · Unix timestamps ·

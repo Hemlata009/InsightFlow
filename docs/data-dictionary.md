@@ -32,8 +32,11 @@ A typo or contradiction (e.g. min > max, a rule using an unknown column) is reje
 | State | text | no | keep | any | Optional |
 
 **If-missing policies:** `quarantine` = set the row aside with a reason; `keep + flag` = keep the row, mark
-the cell as missing in the report; `derive` = calculate from the sales formula when the other three values
-exist, otherwise quarantine.
+the cell as missing in the report; `derive` = calculate with the column's `derive_expression` from the config
+(e.g. Discount = `1 - Sales / (Quantity * Unit_Price)`) when the other values exist, otherwise quarantine.
+
+**Spelling:** text columns with `normalize_case: true` (Product, Category, Region, Sub_Category, Segment, State)
+are matched to the allowed value, or to the most common spelling (`" north "` → `North`).
 
 ## Business rules (decided 2026-11-21, change in config if the business says otherwise)
 | # | Question | Decision |
