@@ -23,6 +23,7 @@ import pandas as pd
 
 SOURCE_ROW = "_source_row"
 UNCALCULATED = "#UNCALCULATED_FORMULA"
+OVERFLOW = "_overflow"                  # extra cells beyond the header, kept as JSON text
 SUPPORTED = {".csv": "csv", ".tsv": "csv", ".txt": "csv", ".xlsx": "xlsx", ".json": "json",
              ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".xml": "xml",
              ".fwf": "fwf", ".prn": "fwf"}
@@ -348,19 +349,73 @@ def _mark_uncalculated(raw, sheet, rows, warnings):
                     for i, r in enumerate(wb[sheet].iter_rows(values_only=True), start=1)}
     finally:
         wb.close()
-    count, out = 0, []
+    grid = {n: cells for n, cells in rows}
+    count, calculated, out = 0, 0, []
     for n, cells in rows:
         f = formulas.get(n, [])
         new = list(cells)
         for j, v in enumerate(new):
             if j < len(f) and f[j] and not v.strip():
-                new[j] = UNCALCULATED
-                count += 1
+                value = _evaluate_formula(f[j], grid)
+                if value is None:
+                    new[j] = UNCALCULATED
+                    count += 1
+                else:
+                    new[j] = value
+                    calculated += 1
         out.append((n, new))
+    if calculated:
+        warnings.append(f"{calculated} formula cell(s) had no saved result and were calculated by InsightFlow "
+                        "(simple arithmetic of cells only); worth a check")
     if count:
         warnings.append(f"{count} formula cell(s) have no saved result (the file was never recalculated); "
                         "those rows are set aside. Open and save the file in Excel or LibreOffice to fix")
     return out
+
+
+_REF = r"\$?([A-Z]{1,3})\$?(\d+)"
+
+
+def _col_index(letters: str) -> int:
+    n = 0
+    for ch in letters:
+        n = n * 26 + (ord(ch) - 64)
+    return n - 1
+
+
+def _evaluate_formula(formula: str, grid: dict) -> str | None:
+    """'=H5*I5*(1-K5)' -> '180'. Only numbers, same-sheet cell references and + - * / ( ).
+    Anything else (functions, other sheets, text, empty or uncalculated cells) -> None (not guessed)."""
+    import re as _re
+
+    from insightflow.money import evaluate
+
+    body = formula[1:] if formula.startswith("=") else formula
+    if not _re.fullmatch(r"[A-Z$\d\s.+\-*/()]+", body):
+        return None
+    values = {}
+
+    def name(m):
+        col, row = m.group(1), int(m.group(2))
+        cells = grid.get(row, [])
+        j = _col_index(col)
+        text = cells[j].strip() if j < len(cells) else ""
+        try:
+            float(text)
+        except ValueError:
+            raise LookupError from None
+        key = f"c_{col}{row}"
+        values[key] = text
+        return key
+
+    try:
+        expr = _re.sub(_REF, name, body)
+        result = evaluate(expr, values)
+    except (LookupError, ValueError, SyntaxError):
+        return None
+    if result is None:
+        return None
+    return format(result.normalize(), "f")
 
 
 def _sheet_score(rows, known_headers, opts) -> tuple:
@@ -428,6 +483,11 @@ def _json_rows(raw, fmt, meta, warnings):
     for n, rec in zip(numbers, frame.itertuples(index=False)):
         out.append((n, [_json_text(v) for v in rec]))
     return out, bad
+
+
+def json_dumps(v) -> str:
+    import json
+    return json.dumps(v, ensure_ascii=False)
 
 
 def _json_text(v) -> str:
@@ -589,6 +649,7 @@ def _build(rows, meta, warnings, known_headers, opts, header_index: int | None =
         columns.append(name)
 
     data, bad, blank = [], list(extra_bad or []), 0
+    overflow: dict[int, str] = {}
     width = len(columns)
     for line, r in rows[idx + 1:]:
         if not any(c.strip() for c in r):
@@ -598,6 +659,10 @@ def _build(rows, meta, warnings, known_headers, opts, header_index: int | None =
             r = r[:width]                             # extra empty cells at the end are harmless
         if meta.format == "xlsx" and len(r) < width:
             r = r + [""] * (width - len(r))           # Excel omits trailing empty cells
+        if len(r) > width and meta.format != "xlsx":      # extra cells at the END: keep them aside
+            extra = [c for c in r[width:]]
+            r = r[:width]
+            overflow[line] = json_dumps(extra)
         if len(r) != width:
             bad.append({"source_row": line, "reason": f"{len(r)} fields, expected {width}", "values": r})
             continue
@@ -615,5 +680,10 @@ def _build(rows, meta, warnings, known_headers, opts, header_index: int | None =
 
     df = pd.DataFrame(data, columns=[SOURCE_ROW, *columns])
     df[columns] = df[columns].astype("string")
+    if overflow:
+        df[OVERFLOW] = pd.array([overflow.get(r) for r in df[SOURCE_ROW]], dtype="string")
+        warnings.append(f"{len(overflow)} row(s) had more cells than the header; the extra cells are kept in "
+                        f"column '{OVERFLOW}' and the rows are flagged")
+        columns = [*columns, OVERFLOW]
     meta.rows, meta.columns = len(df), columns
     return IngestResult(df, meta, warnings, bad)

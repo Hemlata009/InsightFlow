@@ -21,7 +21,8 @@ CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
 
 ColumnType = Literal["string", "integer", "float", "date", "datetime", "boolean"]
 DATE_TYPES = ("date", "datetime")     # "date" keeps the calendar day only; "datetime" also keeps the time
-MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive", "fill_from_group", "impute"]
+MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive", "fill_from_group", "impute",
+                        "placeholder"]
 RuleKind = Literal["formula", "same_sign", "not_equal", "date_range"]
 Severity = Literal["quarantine", "flag"]
 
@@ -45,6 +46,7 @@ class ColumnSpec(Strict):
     money: bool = False               # an amount in the dataset currency (used by currency conversion)
     derive_expression: str | None = None   # used when missing_policy == "derive", e.g. "Sales / Quantity"
     derive_round: int | None = None
+    placeholder: str = "MISSING-ROW-{row}"        # missing_policy placeholder: {row} = row in the original file
     group_by: list[str] = Field(default_factory=list)   # fill_from_group: copy the value other rows of the group agree on
     impute_method: Literal["median", "mean", "mode"] | None = None
     max_skew_for_mean: float = 1.0                       # mean imputation refused if |skewness| is above this
@@ -108,11 +110,28 @@ class LocaleSpec(Strict):
     thousands_separator: str
     grouping: Literal["indian", "international"]
     magnitudes: dict[str, float]
+    languages: list[str] = Field(default_factory=lambda: ["en"])      # for written dates ("5 मार्च 2025")
+    timezone_abbreviations: dict[str, str] = Field(default_factory=dict)   # e.g. IST -> Asia/Kolkata (India)
 
     @model_validator(mode="after")
     def _check(self):
         if self.decimal_separator == self.thousands_separator:
             raise ValueError("decimal and thousands separators must differ")
+        return self
+
+
+class PartialDatePolicy(Strict):
+    """How to complete 'Mar 2025' (no day) and '05/03' (no year). See normalization/partial_dates.py."""
+    missing_day: Literal["first_of_month", "last_of_month", "fixed_day", "median_day", "mean_day", "mode_day",
+                         "previous_row", "next_row", "plugin", "quarantine"] = "first_of_month"
+    missing_year: Literal["mode_year", "previous_row", "next_row", "fixed_year", "plugin", "quarantine"] = "mode_year"
+    fixed_day: int = Field(1, ge=1, le=31)
+    fixed_year: int | None = None
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.missing_year == "fixed_year" and not self.fixed_year:
+            raise ValueError("partial_dates: missing_year fixed_year needs fixed_year")
         return self
 
 
@@ -125,8 +144,10 @@ class Policies(Strict):
     extra_date_formats: list[str] = Field(default_factory=list)
     excel_serial_dates: bool = True
     two_digit_years: bool = True          # 05/03/26 -> 2026 (Python pivot: 00-68 -> 20xx, 69-99 -> 19xx)
-    unix_timestamps: bool = False         # 1741132800 (s / ms / µs); off: an integer column may be an ID
-    compact_dates: bool = False           # 20250305; off: 8-digit numbers are often IDs
+    unix_timestamps: bool = True          # 1741132800 (s / ms / µs, UTC); only accepted inside date_range
+    compact_dates: bool = True            # 20250305; only accepted inside date_range
+    dateparser_fallback: bool = True      # written dates via dateparser ("5th March 2025"), strict, in range
+    partial_dates: PartialDatePolicy = Field(default_factory=PartialDatePolicy)
     timezone: str | None = None           # business time zone, e.g. Asia/Kolkata; needed for "...+05:30"/"Z" times
     percent_strings: bool = True
     accounting_negatives: bool = True

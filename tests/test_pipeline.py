@@ -156,7 +156,7 @@ def test_clean_file_completes(tmp_path):
 
 def test_mostly_bad_file_needs_review(tmp_path):
     p = tmp_path / "bad.csv"
-    rows = [GOOD_ROW] + [GOOD_ROW.replace("IN-1", f"IN-{i}").replace(",100,", ",abc,") for i in range(2, 6)]
+    rows = [GOOD_ROW] + [GOOD_ROW.replace("IN-1", f"IN-{i}").replace("05/03/2025", "31/02/2025") for i in range(2, 6)]
     p.write_text(HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
     res = run_phase1(p, "SALES_002", data_root=tmp_path / "data")
     assert res["status"] == "needs_review" and res["rows_quarantined"] == 4

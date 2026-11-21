@@ -16,4 +16,4 @@ def test_all_truth_checks_pass(ds, capsys):
     code = main(ds)
     out = capsys.readouterr().out
     assert code == 0, out[-2500:]
-    assert out.count("  PASS  ") == 5 and "  FAIL  " not in out
+    assert out.count("  PASS  ") == 6 and "  FAIL  " not in out

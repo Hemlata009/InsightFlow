@@ -259,7 +259,7 @@
       "source_row_id": 206,
       "messy_value": "1.5",
       "expected_value": 0.1,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0018",
@@ -309,7 +309,7 @@
       "source_row_id": 244,
       "messy_value": "price?",
       "expected_value": 55000.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0023",
@@ -450,7 +450,7 @@
       "source_row_id": 421,
       "messy_value": "1.5",
       "expected_value": 0.15,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0037",
@@ -511,7 +511,7 @@
       "source_row_id": 563,
       "messy_value": "1.5",
       "expected_value": 0.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0043",
@@ -531,7 +531,7 @@
       "source_row_id": 578,
       "messy_value": "abc",
       "expected_value": 250.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0045",
@@ -571,7 +571,7 @@
       "source_row_id": 612,
       "messy_value": "1.5",
       "expected_value": 0.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0049",
@@ -702,7 +702,7 @@
       "source_row_id": 799,
       "messy_value": "TBD",
       "expected_value": 55000.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0062",
@@ -763,7 +763,7 @@
       "source_row_id": 888,
       "messy_value": "#VALUE!",
       "expected_value": 55000.0,
-      "expected_action": "quarantine"
+      "expected_action": "repair_from_formula"
     },
     {
       "issue_id": "I0068",

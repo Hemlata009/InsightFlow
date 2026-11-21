@@ -77,7 +77,9 @@ def natural_issues(raw: pd.DataFrame) -> list[dict]:
 def build(out_dir: Path) -> dict:
     raw = load_raw()
     truth = build_truth(raw)
-    messy, issues = make_messy(truth, LOCALE, SEED)
+    # No returns in this dataset: a quantity of -999 has only ONE consistent fix (from the formula),
+    # so it is repaired; in SALES_002 (returns allowed) two fixes fit and the row stays set aside.
+    messy, issues = make_messy(truth, LOCALE, SEED, expected_overrides={"invalid_quantity": "repair_from_formula"})
     return write_outputs(
         out_dir, DATASET_ID, truth, messy, issues,
         locale=LOCALE, header_map=HEADER_MAP, csv_encoding="cp1252", csv_sep=",",

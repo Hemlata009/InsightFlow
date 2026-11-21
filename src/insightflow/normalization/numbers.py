@@ -85,24 +85,30 @@ def parse_number(text: str, locale: LocaleSpec, *, allow_percent: bool = True,
             raise NotConvertible("accounting_not_allowed", s)
         negative, s = True, s[1:-1].strip()
         steps.append("accounting_negative")
+    # Several minus markers ("(500-)", "-(500)", "--500") all mean "negative" in accounting exports:
+    # the value is negative (never positive) and the step "double_minus" makes the row FLAGGED for a check.
     if s.endswith("-") and len(s) > 1 and s[-2].isdigit():   # "500-" (accounting/SAP exports)
         if negative:
-            raise NotConvertible("conflicting_signs", text)    # "(500-)": two minus markers, meaning unclear
+            steps.append("double_minus")
         negative, s = True, s[:-1].strip()
         steps.append("trailing_minus")
-    if s.startswith("-"):
+    while s.startswith("-"):
         if negative:
-            raise NotConvertible("conflicting_signs", text)    # "-(500)", "--500", "-500-"
+            steps.append("double_minus")
         negative, s = True, s[1:].strip()
         if s.startswith("(") and s.endswith(")"):
-            raise NotConvertible("conflicting_signs", text)    # "-(500)"
+            s = s[1:-1].strip()
+            steps.append("double_minus")
+    if s.startswith("(") and s.endswith(")") and negative:      # "(-500)" after a leading minus
+        s = s[1:-1].strip()
+        steps.append("double_minus")
     elif s.startswith("+"):
         s = s[1:].strip()
 
     s = _strip_currency(s, loc, steps, text)
     if s.startswith("-"):                                     # e.g. "₹-500"
         if negative:
-            raise NotConvertible("conflicting_signs", text)
+            steps.append("double_minus")
         negative, s = True, s[1:].strip()
 
     multiplier = Decimal(1)

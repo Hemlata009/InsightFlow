@@ -6,10 +6,10 @@
       "result": {
         "status": "completed_with_warnings",
         "rows_input": 1013,
-        "rows_output": 989,
-        "rows_quarantined": 16,
+        "rows_output": 997,
+        "rows_quarantined": 8,
         "rows_duplicates_removed": 8,
-        "rows_flagged": 0,
+        "rows_flagged": 8,
         "transformations_applied": {
           "date:date_format:%d-%b-%y": 4,
           "date:excel_serial": 4,
@@ -21,18 +21,18 @@
           "number:currency_removed+grouping_removed": 4,
           "number:magnitude_suffix": 4,
           "number:percent": 4,
+          "repaired_from_formula": 8,
           "text_standardized": 16
         },
         "validation_errors": [
-          "schema:less_than_or_equal_to(0.8): 4 row(s) [quarantine]",
           "rule:return_sign_consistency: 4 row(s) [quarantine]",
           "rule:order_date_in_range: 4 row(s) [quarantine]"
         ],
         "processing_mode": "in_memory"
       },
       "outputs_sha256": {
-        "cleaned": "c71c17808acfd4929038b7983c065acb266ac544b35b221cff9e828908cece04",
-        "quarantine": "0305ae77ab129dcce57872eb54c47478a642ed33dbfa8ca4ce0611c5b4501cb0",
+        "cleaned": "67d2caeaeda1b8f42f4cbd37d22c9a0e2ee3a05c45a9b5ce17b7246ee7179453",
+        "quarantine": "6d314a04beac2921dc85fd9ee899ff18ba25aee7a7f439a87ce08190656d92eb",
         "duplicates": "cfffea030eb292ad8c1dd3bf638f28484dac7469a72b779e65e4329d6f6a5611"
       }
     },
@@ -41,10 +41,10 @@
       "result": {
         "status": "completed_with_warnings",
         "rows_input": 1013,
-        "rows_output": 989,
-        "rows_quarantined": 16,
+        "rows_output": 997,
+        "rows_quarantined": 8,
         "rows_duplicates_removed": 8,
-        "rows_flagged": 0,
+        "rows_flagged": 8,
         "transformations_applied": {
           "date:date_format:%d-%b-%y": 4,
           "date:excel_serial": 4,
@@ -56,18 +56,18 @@
           "number:currency_removed+grouping_removed": 4,
           "number:magnitude_suffix": 4,
           "number:percent": 4,
+          "repaired_from_formula": 8,
           "text_standardized": 16
         },
         "validation_errors": [
-          "schema:less_than_or_equal_to(0.8): 4 row(s) [quarantine]",
           "rule:return_sign_consistency: 4 row(s) [quarantine]",
           "rule:order_date_in_range: 4 row(s) [quarantine]"
         ],
         "processing_mode": "in_memory"
       },
       "outputs_sha256": {
-        "cleaned": "3940265a3c0518b1a2e8be16c9d58bb14b9eb745ac7518ddfbd8475f18f98f60",
-        "quarantine": "af3f7394df938f6cde97ad17ef26c36eb47f4425d42f6c66b8bbd0103be66866",
+        "cleaned": "3ba62272715c5d9147294709a216694431a7f53fff3f7e29506b9892d0c8b15b",
+        "quarantine": "70e5a751f97c02cf3e9d44323fef5ea49bd598877d31c8e2bcbe4bfc38dc324d",
         "duplicates": "fe17e4adf375afedf182b16de1b51a1abb6296e212fd72aeea5c6366e5536a49"
       }
     },
@@ -76,10 +76,10 @@
       "result": {
         "status": "completed_with_warnings",
         "rows_input": 10074,
-        "rows_output": 9833,
-        "rows_quarantined": 160,
+        "rows_output": 9953,
+        "rows_quarantined": 40,
         "rows_duplicates_removed": 81,
-        "rows_flagged": 20,
+        "rows_flagged": 141,
         "transformations_applied": {
           "date:date_format:%d-%b-%y": 40,
           "date:excel_serial": 40,
@@ -91,19 +91,17 @@
           "number:currency_removed+grouping_removed": 40,
           "number:magnitude_suffix": 40,
           "number:percent": 40,
+          "repaired_from_formula": 120,
           "text_standardized": 433
         },
         "validation_errors": [
-          "schema:greater_than_or_equal_to(1.0): 40 row(s) [quarantine]",
-          "schema:less_than_or_equal_to(0.8): 40 row(s) [quarantine]",
-          "rule:return_sign_consistency: 40 row(s) [quarantine]",
           "rule:order_date_in_range: 40 row(s) [quarantine]"
         ],
         "processing_mode": "in_memory"
       },
       "outputs_sha256": {
-        "cleaned": "8f4ab6c9d499f7c0cb642af0ddbc658c424e8693847785a29e8f0dbe9495efe3",
-        "quarantine": "7d10a95a17305803b46d5f1ffb2798da9159348c1bd0704c29722dc9e7f47954",
+        "cleaned": "6f2af803ddbfb7eaa82faf22194b2e592765e3ecdd50ded75bd8567be2f0b7cd",
+        "quarantine": "f9a52b50f489aa7ad65c9784afff5f8fd7227e323ee85bc140e7f5f7464cc1ce",
         "duplicates": "b176a9f261ddb8b19b15086800f7bb768fb9d9ab62593934446ef8c0796c53b3"
       }
     }

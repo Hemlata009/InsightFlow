@@ -21,6 +21,7 @@ NOTE_PATTERNS = [
     r"^no column separator found; read as fixed-width",
     r"^this exact file was processed before",    # repeated upload: results are recomputed
     r"^column .* is not in the rule book; kept as text",
+    r"^column '_overflow' is not in the rule book",
     r"^extra column\(s\) not in the rule book (added|removed) since the last run",
     r"^switched to chunked mode",
     r"^large file \(",

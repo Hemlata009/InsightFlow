@@ -9,9 +9,13 @@ re-record the baseline and explain why in the commit.
 ## Verified results
 | Input | Rows in | Clean out | Set aside | Duplicates removed | Flagged | Status |
 |---|---|---|---|---|---|---|
-| SALES_002 `sales_messy.csv` (India, generated) | 1,013 | 989 | 16 | 8 | 0 | completed_with_warnings |
-| SALES_002 `sales_messy.xlsx` (same data, Excel, header on row 3) | 1,013 | 989 | 16 | 8 | 0 | completed_with_warnings |
-| SALES_001 `sales_messy.csv` (US, real Superstore) | 10,074 | 9,833 | 160 | 81 | 20 | completed_with_warnings |
+| SALES_002 `sales_messy.csv` (India, generated) | 1,013 | 997 | 8 | 8 | 8 | completed_with_warnings |
+| SALES_002 `sales_messy.xlsx` (same data, Excel, header on row 3) | 1,013 | 997 | 8 | 8 | 8 | completed_with_warnings |
+| SALES_001 `sales_messy.csv` (US, real Superstore) | 10,074 | 9,953 | 40 | 81 | 141 | completed_with_warnings |
+| SALES_003 `chaos.csv` (one problem per row) | 83 | 70 | 11 | 2 | 22 | completed_with_warnings |
+
+**v1.3:** proven repairs from the formula (SALES_002: 8, SALES_001: 120), placeholder IDs, partial dates,
+dateparser, IST mapping; flagged rows = the repaired ones (each repair is marked for a person).
 
 "Completed with warnings" here = the planted bad rows were set aside (correct). A clean file gives `completed`:
 the truth file and a re-run of the cleaned output both do (SALES_002).
@@ -28,7 +32,7 @@ re-running the cleaned output changes nothing; the truth file passes (only prove
 "Set aside" = exactly the rows the answer key planted as bad. Clean data = the truth file (numbers within 0.001).
 
 ## Test suite at freeze
-**453 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
+**460 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
 | Group | Tests | Peak RAM |
 |---|---|---|
 | tests/harness | 20 | 150 MB |

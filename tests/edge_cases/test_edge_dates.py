@@ -57,8 +57,9 @@ def test_unix_timestamps_when_enabled(value):
     assert d == ["2025-03-05"] and rule[0].startswith("unix_")
 
 
-def test_unix_timestamps_off_by_default_with_reason():
-    d, _, r = run(["1741132800"])
+def test_unix_timestamps_on_by_default_and_can_be_switched_off():
+    assert run(["1741132800"])[0] == ["2025-03-05"]                  # inside the date range: accepted
+    d, _, r = run(["1741132800"], cfg_with(unix_timestamps=False))
     assert d == [None] and r == ["unix_timestamp_not_enabled"]
 
 
@@ -67,8 +68,8 @@ def test_unix_timestamp_outside_range_refused():
     assert d == [None]
 
 
-def test_compact_dates_are_opt_in():
-    assert run(["20250305"])[2] == ["compact_date_not_enabled"]
+def test_compact_dates_on_by_default_and_can_be_switched_off():
+    assert run(["20250305"], cfg_with(compact_dates=False))[2] == ["compact_date_not_enabled"]
     d, rule, _ = run(["20250305", "20990101"], cfg_with(compact_dates=True))
     assert d == ["2025-03-05", None] and rule[0] == "compact_date"       # 2099 is outside the date range
 
@@ -102,9 +103,26 @@ def test_zoned_times_need_a_configured_timezone():
     assert d == [None] and r == ["timezone_not_configured"]
 
 
-def test_zone_abbreviations_are_ambiguous():
-    d, _, r = run(["2025-03-05 10:00 IST"])                      # India or Israel (or Irish) Standard Time?
+def test_zone_abbreviations_are_ambiguous_without_a_locale_mapping():
+    d, _, r = run(["2015-03-05 10:00 IST"], US)                  # US data: India or Israel Standard Time?
     assert d == [None] and r == ["timezone_name_ambiguous"]
+
+
+def test_ist_means_india_in_an_indian_dataset():
+    d, rule, _ = run(["2025-03-05 23:30 IST"])                   # SALES_002 locale maps IST -> Asia/Kolkata
+    assert d == ["2025-03-05"] and rule == ["timezone_abbreviation"]
+
+
+@pytest.mark.parametrize("value", ["5th March 2025", "March 5, 2025", "5 मार्च 2025"])
+def test_written_dates_via_dateparser(value):
+    d, rule, _ = run([value])
+    assert d == ["2025-03-05"] and rule == ["dateparser"]
+
+
+def test_dateparser_never_guesses_missing_parts_or_relative_words():
+    _, _, r = run(["yesterday", "next friday", "Mar 2025", "05/03"], cfg_with(
+        partial_dates=IN.policies.partial_dates.model_copy(update={"missing_day": "quarantine"})))
+    assert r == ["unrecognised_date", "unrecognised_date", "missing_day", "missing_year"]
 
 
 def test_unknown_timezone_rejected_in_config():

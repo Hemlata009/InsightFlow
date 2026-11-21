@@ -51,6 +51,11 @@ class Spec:
     def extra_checks(self, data, cfg):
         """Return a list of failure dicts (see module docstring)."""
 
+    @hookspec(firstresult=True)
+    def resolve_partial_date(self, column, text, parts, row, record, cfg):
+        """Complete an incomplete date your own way (policy 'plugin'). `parts` is {'kind': 'missing_day',
+        'month', 'year'} or {'kind': 'missing_year', 'day', 'month'}. Return a date, or None to set the row aside."""
+
 
 def load_plugins(names: list[str]) -> pluggy.PluginManager:
     pm = pluggy.PluginManager(PROJECT)

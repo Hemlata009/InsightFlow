@@ -9,6 +9,9 @@ en_IN:
   decimal_separator: "."
   thousands_separator: ","
   grouping: indian                # 1,00,000 (lakh) and 1,00,00,000 (crore)
+  languages: [en, hi]             # written dates may be in English or Hindi
+  timezone_abbreviations:         # "10:00 IST" in an Indian file means India Standard Time
+    IST: Asia/Kolkata
   magnitudes:                     # suffix -> multiplier (case-insensitive, spaces allowed)
     K: 1.0e3
     L: 1.0e5
@@ -26,6 +29,16 @@ en_US:
   decimal_separator: "."
   thousands_separator: ","
   grouping: international         # 100,000
+  languages: [en]
+  timezone_abbreviations:
+    EST: America/New_York
+    EDT: America/New_York
+    CST: America/Chicago
+    CDT: America/Chicago
+    MST: America/Denver
+    MDT: America/Denver
+    PST: America/Los_Angeles
+    PDT: America/Los_Angeles
   magnitudes:
     K: 1.0e3
     M: 1.0e6
@@ -42,6 +55,10 @@ de_DE:
   decimal_separator: ","          # 1.234,56 = one thousand two hundred thirty-four point five six
   thousands_separator: "."
   grouping: international
+  languages: [de, en]
+  timezone_abbreviations:
+    CET: Europe/Berlin
+    CEST: Europe/Berlin
   magnitudes:
     K: 1.0e3
     TSD: 1.0e3

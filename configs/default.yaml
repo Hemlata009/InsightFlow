@@ -14,9 +14,16 @@ policies:
     - "%d-%b-%Y"                    # 05-Mar-2026
   excel_serial_dates: true          # 45746 -> 2025-03-30 (only if inside date_range); 45746.5 = with time
   two_digit_years: true             # 05/03/26 -> 2026 (00-68 -> 20xx, 69-99 -> 19xx); range check still applies
-  unix_timestamps: false            # 1741132800 / ...000 (ms) / ...000000 (µs); off: integers may be IDs
-  compact_dates: false              # 20250305; off: 8-digit numbers are often IDs
+  unix_timestamps: true             # 1741132800 / ...000 (ms) / ...000000 (µs), UTC; only if inside date_range
+  compact_dates: true               # 20250305; only if inside date_range
+  dateparser_fallback: true         # other written dates ("5th March 2025", "5 मार्च 2025") via dateparser, strict
   timezone: null                    # business time zone; required to read times like "...+05:30" or "...Z"
+  partial_dates:                    # "Mar 2025" (no day) / "05/03" (no year): completed rows are FLAGGED
+    missing_day: first_of_month     # first_of_month | last_of_month | fixed_day | median_day | mean_day | mode_day
+                                    # | previous_row | next_row (insert up/down) | plugin | quarantine
+    missing_year: mode_year         # mode_year | previous_row | next_row | fixed_year | plugin | quarantine
+    fixed_day: 1
+    fixed_year: null
   percent_strings: true             # "10%" -> 0.10
   accounting_negatives: true        # "(1,000)" -> -1000
   magnitude_suffixes: true          # 15K, 2.5M, 1.2 L, 3 Cr (per locale)

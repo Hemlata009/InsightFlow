@@ -20,6 +20,7 @@ dependencies = [
     "CurrencyConverter>=0.18",  # ECB exchange rates (offline)
     "defusedxml>=0.7",      # safe XML reading
     "pluggy>=1.5",          # add-on steps (plugins)
+    "dateparser>=1.2",      # written dates ("5th March 2025", Hindi months)
 ]
 
 [project.optional-dependencies]

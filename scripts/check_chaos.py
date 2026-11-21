@@ -94,9 +94,10 @@ def report(name: str, res: dict, graded: list[dict]) -> bool:
     print(f"  notes   : {res.get('notes')}")
     print(f"  warnings: {res['warnings']}")
     fails = [g for g in graded if not g["ok"]]
+    share = res["rows_quarantined"] / res["rows_input"]
     print(f"  {len(graded) - len(fails)}/{len(graded)} rows as expected; every row accounted for: {accounted}; "
-          f"status needs_review (too many bad rows): {res['status'] == 'needs_review'}")
-    return not fails and accounted and res["status"] == "needs_review"
+          f"set aside {share:.1%} (must stay under 20%)")
+    return not fails and accounted and share < 0.20 and res["status"] == "completed_with_warnings"
 
 
 def main(argv=None) -> int:

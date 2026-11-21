@@ -1,4 +1,5 @@
 CurrencyConverter==0.18.23
+dateparser==1.5.1
 defusedxml==0.7.1
 duckdb==2.0.1
 fastapi==0.165.0

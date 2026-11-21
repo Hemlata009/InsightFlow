@@ -88,4 +88,4 @@ One deliberately unstructured file where **every row is one problem**, generated
 - `answer_key.json` lists, per file and row, the expected outcome: keep (with values), flag (rule),
   quarantine (reason), or duplicate.
 - Check: `python -m harness run -- python -m scripts.check_chaos --chunked` grades every row
-  (CSV 81/81, Excel 82/82, chunked 81/81).
+  (CSV 83/83, Excel 84/84, chunked 83/83; set aside 13% after the safe recoveries of discussion 20).

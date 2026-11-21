@@ -45,7 +45,7 @@ def test_good_row_passes():
 
 @pytest.mark.parametrize("change, check", [
     ({"Discount": "1.5", "Sales": "-100"}, "schema:less_than_or_equal_to(0.8)"),
-    ({"Region": "Mars"}, "schema:isin(['North', 'South', 'East', 'West', 'Central'])"),
+    ({"Category": "Toys"}, "schema:isin(['Electronics', 'Furniture', 'Office Supplies'])"),
     ({"Quantity": "-999"}, "rule:return_sign_consistency"),          # negative qty but positive sales
     ({"Quantity": "0", "Sales": "0"}, "rule:quantity_not_zero"),
     ({"Order_Date": "19/02/2035"}, "rule:order_date_in_range"),

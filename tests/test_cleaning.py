@@ -48,7 +48,9 @@ def test_unconvertible_value_quarantined_with_reason():
 
 def test_missing_required_quarantined():
     c = run(table({"Order_ID": "NA"}, {"Quantity": "-"}))
-    assert sorted(c.quarantine[REASONS]) == ["missing_required:Order_ID", "missing_required:Quantity"]
+    assert list(c.quarantine[REASONS]) == ["missing_required:Quantity"]
+    # BR-10 (user): a missing Order ID gets a temporary ID and is flagged
+    assert c.data.loc[0, "Order_ID"] == "MISSING-ROW-2" and c.flags[0]["flag"] == "placeholder_value"
 
 
 def test_missing_customer_with_nothing_to_copy_is_kept_and_flagged():

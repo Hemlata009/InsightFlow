@@ -44,14 +44,25 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True,
         for r in rows:
             reasons.setdefault(int(r), []).append(reason)
 
-    # (1) values that could not be converted
+    # (1) values that could not be converted. In a fill_from_group column (e.g. Region) an invalid value is
+    # treated like a blank first: if the group (e.g. the same State) agrees on a valid value, it replaces it.
+    group_cols = {c for c, s in cfg.columns.items() if s.missing_policy == "fill_from_group" and c in df}
+    replaced: dict[tuple[int, str], str] = {}               # (row, column) -> why the original was invalid
     for iss in norm.issues:
-        quarantine([iss["source_row"]], f"invalid_value:{iss['column']}:{iss['reason']}")
+        if iss["column"] in group_cols:
+            replaced[(iss["source_row"], iss["column"])] = iss["reason"]
+        else:
+            quarantine([iss["source_row"]], f"invalid_value:{iss['column']}:{iss['reason']}")
+    for col in group_cols:                                  # values the rule book doesn't allow ("Mars")
+        bad_value = df[col].notna() & ~_valid_for(df[col], cfg.columns[col])
+        for i in df.index[bad_value]:
+            replaced[(int(df.at[i, SOURCE_ROW]), col)] = f"not_allowed:{df.at[i, col]}"
+            df.at[i, col] = pd.NA
 
-    actions, flags = [], []
+    actions, flags = [], list(getattr(norm, "flags", []))     # flags raised while standardizing
     # (2) missing values, column by column (derivations first need the other columns, so do them last)
     ordered = sorted((c for c in cfg.columns if c in df), key=lambda c: cfg.columns[c].missing_policy == "derive")
-    invalid_cells = {(i["source_row"], i["column"]) for i in norm.issues}
+    invalid_cells = {(i["source_row"], i["column"]) for i in norm.issues} - set(replaced)
     for col in ordered:
         spec = cfg.columns[col]
         missing = df[col].isna() & ~df[SOURCE_ROW].map(lambda r, c=col: (r, c) in invalid_cells)
@@ -64,18 +75,42 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True,
         elif policy == "keep_and_flag":
             flags += [{"stage": "clean", "flag": "missing_value", "source_row": int(r), "column": col}
                       for r in rows]
+        elif policy == "placeholder":                   # e.g. a temporary order ID, always flagged
+            for i in df.index[missing]:
+                r = int(df.at[i, SOURCE_ROW])
+                value = spec.placeholder.format(row=r)
+                df.at[i, col] = value
+                actions.append(_act("placeholder", r, col, None, value))
+                flags.append({"stage": "clean", "flag": "placeholder_value", "source_row": r, "column": col,
+                              "detail": f"temporary value {value!r}: the original was missing"})
         elif policy == "fill_value":
             df.loc[missing, col] = spec.fill_value
             actions += [_act("fill_value", r, col, None, spec.fill_value) for r in rows]
         elif policy == "fill_from_group":
             a, f, bad_rows = _fill_from_group(df, col, spec.group_by, missing,
                                               (group_values or {}).get(col), spec)
+            for act in a:                       # was it a blank, or an invalid value we replaced?
+                why = replaced.get((act["source_row"], col))
+                if why:
+                    act["rule"] = "invalid_replaced_from_group"
+                    act["detail"] = f"original was invalid ({why}); {act.get('detail', '')}".strip("; ")
+                    flags.append({"stage": "clean", "flag": "invalid_value_replaced", "source_row": act["source_row"],
+                                  "column": col, "detail": act["detail"]})
             actions += a
-            quarantine(bad_rows, f"group_values_conflict:{col}")
-            if spec.nullable:
-                flags += f                      # nothing to copy: keep the blank, flag it
-            else:                               # a required value that can't be filled: set the row aside
-                quarantine([x["source_row"] for x in f], f"missing_required:{col}")
+            for r in bad_rows:                  # the group disagrees
+                if spec.nullable and (int(r), col) not in replaced:   # unknown but allowed blank: keep + flag (BR-5)
+                    flags.append({"stage": "clean", "flag": "group_values_conflict", "source_row": int(r),
+                                  "column": col, "detail": "rows of the group disagree; left blank"})
+                else:
+                    quarantine([r], f"group_values_conflict:{col}")
+            for x in f:                         # nothing in the group to copy
+                key = (x["source_row"], col)
+                if key in replaced:             # an invalid value we could not replace: set aside as invalid
+                    quarantine([x["source_row"]], f"invalid_value:{col}:{replaced[key]}")
+                elif spec.nullable:
+                    flags.append(x)             # a blank that may stay blank: keep + flag
+                else:                           # a required value that can't be filled: set the row aside
+                    quarantine([x["source_row"]], f"missing_required:{col}")
         elif policy == "impute":
             a, f = _impute(df, col, spec, missing)
             actions += a

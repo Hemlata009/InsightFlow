@@ -9,7 +9,8 @@ columns:
     type: string
     required: true
     nullable: false
-    missing_policy: quarantine
+    missing_policy: placeholder       # BR-10 (user, 2026-11-21): temporary ID "MISSING-ROW-<row>", flagged
+    placeholder: "MISSING-ROW-{row}"
     aliases: [order_id, order_no, order_number, invoice_id]
     description: Order identifier. Repeats across the lines of one order (valid line items).
   Order_Date:
@@ -55,6 +56,8 @@ columns:
     required: true
     nullable: false
     missing_policy: quarantine
+    derive_expression: "Sales / (Unit_Price * (1 - Discount))"   # only used to REPAIR a bad quantity
+    derive_round: 0
     min: 1                       # datasets that allow returns lower this
     max: 1000
     aliases: [quantity, qty, units]

@@ -19,7 +19,10 @@ from pathlib import Path
 
 from insightflow import __version__
 from insightflow.audit import preserve_raw, write_run
+import pandas as pd
+
 from insightflow.cleaning import REASONS, clean
+from insightflow.cleaning.repair import add_original_text, candidate_rows, repair_rows
 from insightflow.config import CONFIG_DIR, load_dataset_config
 from insightflow.audit.log import AuditLog, summarize
 from insightflow.hooks import PluginError, load_plugins, plugin_info, run_checks, run_transform
@@ -27,6 +30,7 @@ from insightflow.ingestion import (SOURCE_ROW, FileMetadata, FileRegistry, Inges
                                    file_sha256, read_file)
 from insightflow.ingestion.reader import SUPPORTED
 from insightflow.pipeline.chunked import STREAMABLE, run_chunked
+from insightflow.normalization.partial_dates import resolve_partial_dates
 from insightflow.pipeline.messages import is_note, split_messages
 from insightflow.normalization import normalize
 from insightflow.profiling import profile
@@ -97,6 +101,7 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     warnings += norm.warnings
     if pm:
         norm.data = run_transform(pm, "after_normalize", norm.data, cfg, plugin_log)
+    resolve_partial_dates(norm, cfg, pm)
     if norm.missing_required:
         result["error"] = {"code": "missing_required_columns",
                            "message": f"required column(s) not found: {norm.missing_required}"}
@@ -127,6 +132,33 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     for b in raw.bad_rows:
         q_reasons[b["source_row"]] = f"unreadable_row:{b['reason']}"
 
+    # proven repairs from the formula (exactly one bad value, everything else consistent): kept + flagged
+    cand = candidate_rows(norm.data, cleaned, vq)
+    repaired, repair_log, repair_flags = repair_rows(cand, q_reasons, cfg)
+    rows_fixed = set(repaired[SOURCE_ROW].astype(int)) if len(repaired) else set()
+    if rows_fixed:
+        final = pd.concat([final, repaired], ignore_index=True).sort_values(SOURCE_ROW).reset_index(drop=True)
+        for r in rows_fixed:
+            q_reasons.pop(r, None)
+        add_original_text(repair_log, original_text, norm.header_changes)
+        # repaired rows join the repeat / key checks too (chunked mode does this in DuckDB)
+        value_cols = [c for c in final.columns if c != SOURCE_ROW]
+        dup = final.duplicated(subset=value_cols, keep="first") & final[SOURCE_ROW].isin(rows_fixed)
+        if dup.any():
+            first = final.groupby(value_cols, dropna=False, sort=False)[SOURCE_ROW].transform("first")
+            extra = pd.DataFrame({SOURCE_ROW: final.loc[dup, SOURCE_ROW], "duplicate_of": first[dup]})
+            cleaned.duplicates = pd.concat([cleaned.duplicates, extra], ignore_index=True)
+            final = final.loc[~dup].reset_index(drop=True)
+        key = [k for k in cfg.duplicates.key if k in final]
+        if key and cfg.duplicates.key_conflict == "flag":
+            conflict = final.duplicated(subset=key, keep=False) & final[key].notna().all(axis=1)
+            groups = final.loc[conflict].groupby(key, dropna=False)[SOURCE_ROW].apply(set)
+            already = {f["source_row"] for f in cleaned.flags if f.get("flag") == "key_conflict"}
+            for rows in groups:
+                if rows & rows_fixed:
+                    repair_flags += [{"stage": "clean", "flag": "key_conflict", "source_row": int(r),
+                                      "column": "+".join(key)} for r in rows - already]
+
     raw_by_row = original_text.set_index(SOURCE_ROW)
     q_rows = sorted(q_reasons)
     quarantine = raw_by_row.reindex(q_rows).reset_index()          # ORIGINAL text, for a human to fix
@@ -144,12 +176,14 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
             warnings.append(f"{currency_info['rows_without_rate']} row(s) have no {currency_info['reporting_currency']} "
                             f"rate for their date; their {currency_info['reporting_currency']} columns are blank")
     kept = set(final[SOURCE_ROW].astype(int))
-    effective = [f for f in val.failures if f["severity"] == "quarantine" or f["source_row"] in kept]
-    flags = [f for f in cleaned.flags + [f for f in val.failures if f["severity"] == "flag"]
-             if f["source_row"] in kept]
-    log = plugin_log + norm.changes + norm.issues + cleaned.actions + flags + \
+    effective = [f for f in val.failures if (f["severity"] == "quarantine" or f["source_row"] in kept)
+                 and f["source_row"] not in rows_fixed]
+    flags = [f for f in cleaned.flags + repair_flags +
+             [f for f in val.failures if f["severity"] == "flag" and f["source_row"] not in rows_fixed]
+             if f["source_row"] in kept]          # (a repaired row's checks from BEFORE the repair don't count)
+    log = plugin_log + norm.changes + norm.issues + cleaned.actions + repair_log + flags + \
         [f for f in val.failures if f["severity"] == "quarantine"]
-    transformations = _count(norm.changes + cleaned.actions, "rule")
+    transformations = _count(norm.changes + cleaned.actions + repair_log, "rule")
 
     n_in = result["rows_input"]
     share = len(quarantine) / n_in if n_in else 0.0

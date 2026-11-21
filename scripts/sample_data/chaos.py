@@ -45,6 +45,8 @@ def cases():
     one = lambda **o: [o]                                                     # noqa: E731
     k = lambda **v: {"outcome": "keep", "values": v}                         # noqa: E731
     q = lambda reason: {"outcome": "quarantine", "reason": reason}           # noqa: E731
+    fx = lambda rule, **v: {"outcome": "flag", "rule": rule, "values": v}     # noqa: E731  kept + flagged
+    rep_ = lambda **v: fx("repaired_from_formula", **v)                       # noqa: E731  proven repair
     # ---------------- numbers & money
     add("numbers", "rupee sign", k(Sales=180), one(Sales="₹180.00"))
     add("numbers", "Indian grouping", k(Sales=180000), one(**BIG, Sales="1,80,000.00"))
@@ -54,25 +56,26 @@ def cases():
     add("numbers", "accounting negative", k(Profit=-1401.97), one(Profit="(1,401.97)"))
     add("numbers", "unicode minus", k(Profit=-20), one(Profit="−20"))
     add("numbers", "trailing minus", k(Profit=-20), one(Profit="20-"))
-    add("numbers", "two minus markers", q("conflicting_signs"), one(Profit="(20-)"))
+    add("numbers", "two minus markers: negative, flagged (user)", fx("double_minus_sign", Profit=-20), one(Profit="(20-)"))
     add("numbers", "percent", k(Discount=0.1), one(Discount="10%"))
     add("numbers", "percent with space", k(Discount=0.1), one(Discount="10 %"))
-    add("numbers", "discount above 80%", q("less_than_or_equal_to(0.8)"), one(Discount="1.5"))
-    add("numbers", "150 percent", q("less_than_or_equal_to(0.8)"), one(Discount="150%"))
+    add("numbers", "discount above 80%: repaired from formula", rep_(Discount=0.1), one(Discount="1.5"))
+    add("numbers", "150 percent: repaired from formula", rep_(Discount=0.1), one(Discount="150%"))
     add("numbers", "Rs. prefix", k(Unit_Price=100), one(Unit_Price="Rs. 100"))
     add("numbers", "INR code before", k(Unit_Price=100), one(Unit_Price="INR 100"))
     add("numbers", "INR code after", k(Unit_Price=100), one(Unit_Price="100 INR"))
-    add("numbers", "dollar sign in a rupee file", q("currency_mismatch"), one(Unit_Price="$100"))
-    add("numbers", "US dollars", q("currency_mismatch"), one(Unit_Price="US$100"))
-    add("numbers", "euros", q("currency_mismatch"), one(Unit_Price="€100"))
-    add("numbers", "text instead of a price", q("not_a_number"), one(Unit_Price="abc"))
-    add("numbers", "Excel error text", q("not_a_number"), one(Unit_Price="#VALUE!"))
-    add("numbers", "infinity", q("not_finite"), one(Unit_Price="inf"))
-    add("numbers", "European number style", q("bad_grouping"), one(Unit_Price="1.234,56"))
-    add("numbers", "too many digits", q("precision_loss"), one(Sales="12345678901234567"))
+    add("numbers", "dollar sign in a rupee file: repaired", rep_(Unit_Price=100), one(Unit_Price="$100"))
+    add("numbers", "US dollars: repaired", rep_(Unit_Price=100), one(Unit_Price="US$100"))
+    add("numbers", "euros: repaired", rep_(Unit_Price=100), one(Unit_Price="€100"))
+    add("numbers", "text instead of a price: repaired", rep_(Unit_Price=100), one(Unit_Price="abc"))
+    add("numbers", "Excel error text: repaired", rep_(Unit_Price=100), one(Unit_Price="#VALUE!"))
+    add("numbers", "infinity: repaired", rep_(Unit_Price=100), one(Unit_Price="inf"))
+    add("numbers", "European number style: repaired", rep_(Unit_Price=100), one(Unit_Price="1.234,56"))
+    add("numbers", "too many digits: repaired", rep_(Sales=180), one(Sales="12345678901234567"))
     add("numbers", "fractional quantity", q("not_a_whole_number"), one(Quantity="2.5", Sales="225"))
     add("numbers", "zero quantity", q("quantity_not_zero"), one(Quantity="0", Sales="0", Profit="0"))
-    add("numbers", "negative quantity, positive sales", q("return_sign_consistency"), one(Quantity="-999"))
+    add("numbers", "negative quantity, positive sales (2 repairs fit: ambiguous)", q("return_sign_consistency"),
+        one(Quantity="-999"))
     add("numbers", "valid return", k(Quantity=-2, Sales=-180, Profit=-20), one(Quantity="-2", Sales="-180", Profit="-20"))
     add("numbers", "quantity above 1000", q("less_than_or_equal_to(1000.0)"), one(Quantity="1,001", Sales="90090"))
     add("numbers", "sales doesn't match the formula", {"outcome": "flag", "rule": "sales_formula"}, one(Sales="500"))
@@ -93,9 +96,9 @@ def cases():
     add("blanks", "missing sales: derived", k(Sales=180), one(Sales=""))
     add("blanks", "missing price: derived", k(Unit_Price=100), one(Unit_Price="-"))
     add("blanks", "two missing, can't derive", q("missing_not_derivable"), one(Discount="NA", Sales="NA"))
-    add("blanks", "missing order id", q("missing_required:Order_ID"), one(Order_ID=""))
+    add("blanks", "missing order id: temporary ID, flagged (user)", fx("placeholder_value"), one(Order_ID=""))
     add("blanks", "product given as '?'", q("missing_required:Product"), one(Product="?"))
-    add("blanks", "order lines disagree on the customer (BR-5)", q("group_values_conflict:Customer_ID"),
+    add("blanks", "order lines disagree on the customer: kept blank, flagged", fx("group_values_conflict", Customer_ID=""),
         [{"Order_ID": "CH-BR5", "Customer_ID": "C701", "_expect": "keep"},
          {"Order_ID": "CH-BR5", "Customer_ID": "C702", "Product": "Stapler", "_expect": "keep"},
          {"Order_ID": "CH-BR5", "Customer_ID": "NA", "Product": "Paper Ream"}])
@@ -107,19 +110,24 @@ def cases():
     add("dates", "two-digit year", k(Order_Date="2026-03-05"), one(Order_Date="05/03/26"))
     add("dates", "UTC time becomes the next day in India", k(Order_Date="2025-03-06"), one(Order_Date="2025-03-05T20:00:00Z"))
     add("dates", "date with time", k(Order_Date="2025-03-05"), one(Order_Date="05/03/2025 14:30"))
-    add("dates", "ambiguous zone name", q("timezone_name_ambiguous"), one(Order_Date="2025-03-05 10:00 IST"))
-    add("dates", "no year", q("missing_year"), one(Order_Date="05/03"))
-    add("dates", "no day", q("missing_day"), one(Order_Date="Mar 2025"))
+    add("dates", "IST in an Indian file = India Standard Time", k(Order_Date="2025-03-05"), one(Order_Date="2025-03-05 10:00 IST"))
+    add("dates", "no year: most common year, flagged", fx("partial_date_completed:mode_year", Order_Date="2025-03-05"),
+        one(Order_Date="05/03"))
+    add("dates", "no day: 1st of the month, flagged", fx("partial_date_completed:first_of_month", Order_Date="2025-03-01"),
+        one(Order_Date="Mar 2025"))
     add("dates", "impossible date", q("unrecognised_date"), one(Order_Date="31/02/2025"))
     add("dates", "real leap day, but before the business range", q("order_date_in_range"), one(Order_Date="29/02/2024"))
     add("dates", "year 2035", q("order_date_in_range"), one(Order_Date="19/02/2035"))
-    add("dates", "Unix timestamp (not enabled)", q("unix_timestamp_not_enabled"), one(Order_Date="1741132800"))
-    add("dates", "compact date (not enabled)", q("compact_date_not_enabled"), one(Order_Date="20250305"))
+    add("dates", "Unix timestamp (UTC -> India)", k(Order_Date="2025-03-05"), one(Order_Date="1741132800"))
+    add("dates", "compact date", k(Order_Date="2025-03-05"), one(Order_Date="20250305"))
+    add("dates", "written date (dateparser)", k(Order_Date="2025-03-05"), one(Order_Date="5th March 2025"))
+    add("dates", "date in Hindi (dateparser)", k(Order_Date="2025-03-05"), one(Order_Date="5 मार्च 2025"))
     # ---------------- text
     add("text", "spaces and small letters", k(Region="North"), one(Region="  north "))
     add("text", "capital letters", k(Region="North"), one(Region="NORTH"))
     add("text", "category in small letters", k(Category="Office Supplies"), one(Category="office supplies"))
-    add("text", "region not allowed", q("isin"), one(Region="Mars"))
+    add("text", "region not allowed: replaced from the same state, flagged", fx("invalid_value_replaced", Region="North"),
+        one(Region="Mars"))
     add("text", "messy product spacing", k(Product="Pen Set"), one(Product="  pen   set "))
     add("text", "invisible non-breaking space", k(Product="Pen Set"), one(Product="Pen Set"))
     add("text", "spreadsheet formula text kept as text", k(Product='=HYPERLINK("http://evil.example")'),
@@ -200,7 +208,7 @@ def build(out_dir: Path = OUT) -> dict:
     emit("CH-RAGGED,05/03/2025,oops\n")
     csv_rows.append({"case": "R1", "row": line, "outcome": "quarantine", "reason": "unreadable_row"})
     emit(",".join(_values({**rows[0][1], "Order_ID": "CH-WIDE"})) + ",surprise,extra\n")
-    csv_rows.append({"case": "R2", "row": line, "outcome": "quarantine", "reason": "unreadable_row"})
+    csv_rows.append({"case": "R2", "row": line, "outcome": "flag", "rule": "extra_cells_overflow"})
     (out_dir / "chaos.csv").write_bytes(("﻿" + buf.getvalue()).encode("utf-8"))
 
     # ---------------- Excel: README sheet, hidden sheet, merged title, real numbers/dates, formula, error cell
@@ -230,7 +238,7 @@ def build(out_dir: Path = OUT) -> dict:
             values[7], values[8] = 2, 100.0
         ws.append(values)
         r += 1
-        if case["id"] == "C65":   # in Excel a cell starting with "=" IS a formula (saved without a result)
+        if str(row["Product"]).startswith("="):   # in Excel a cell starting with "=" IS a formula (no result)
             expect = {"outcome": "quarantine", "reason": "uncalculated formula"}
         xlsx_rows.append({"case": case["id"], "row": r, **expect})
     real_date = _values({**rows[0][1], "Order_ID": "CH-XDATE", "Remarks": "X1"})
@@ -242,21 +250,24 @@ def build(out_dir: Path = OUT) -> dict:
     formula[9] = f"=H{r + 1}*I{r + 1}*(1-K{r + 1})"     # saved without a result
     ws.append(formula)
     r += 1
-    xlsx_rows.append({"case": "X2", "row": r, "outcome": "quarantine", "reason": "uncalculated formula"})
+    xlsx_rows.append({"case": "X2", "row": r, "outcome": "keep", "values": {"Sales": 180}})
     err = _values({**rows[0][1], "Order_ID": "CH-XERROR", "Remarks": "X3"})
     err[8] = "#DIV/0!"
     ws.append(err)
     r += 1
-    xlsx_rows.append({"case": "X3", "row": r, "outcome": "quarantine", "reason": "not_a_number"})
+    xlsx_rows.append({"case": "X3", "row": r, "outcome": "flag", "rule": "repaired_from_formula",
+                      "values": {"Unit_Price": 100}})
     wb.properties.created = wb.properties.modified = datetime(2026, 1, 1)
     wb.save(out_dir / "chaos.xlsx")
 
     key["cases"] = [{k: v for k, v in c.items() if k != "rows"} for c in cases()] + [
         {"id": "R1", "group": "structure", "description": "row with too few fields", "expect": {"outcome": "quarantine"}},
-        {"id": "R2", "group": "structure", "description": "row with too many fields", "expect": {"outcome": "quarantine"}},
+        {"id": "R2", "group": "structure", "description": "row with too many fields: extras kept aside, flagged",
+         "expect": {"outcome": "flag"}},
         {"id": "X1", "group": "excel", "description": "real Excel date cell", "expect": {"outcome": "keep"}},
-        {"id": "X2", "group": "excel", "description": "formula saved without its result", "expect": {"outcome": "quarantine"}},
-        {"id": "X3", "group": "excel", "description": "#DIV/0! error cell", "expect": {"outcome": "quarantine"}},
+        {"id": "X2", "group": "excel", "description": "formula without its result: calculated by InsightFlow",
+         "expect": {"outcome": "keep"}},
+        {"id": "X3", "group": "excel", "description": "#DIV/0! error cell: repaired from formula", "expect": {"outcome": "flag"}},
     ]
     key["files"] = {"chaos.csv": {"header_row": 4, "rows": csv_rows},
                     "chaos.xlsx": {"sheet": "Sales Data", "header_row": 3, "rows": xlsx_rows}}

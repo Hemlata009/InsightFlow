@@ -91,6 +91,16 @@ def main(ds: str) -> int:
                         f"{len(q)} set aside, {len(planted_bad)} planted; missed {sorted(planted_bad - q)[:5]}, "
                         f"extra {sorted(q - planted_bad)[:5]}"))
 
+        # 2b. planted problems that are PROVABLY repairable must be kept, repaired and flagged
+        planted_fix = {i["messy_row"] + 2 for i in key["planted_issues"] if i["expected_action"] == "repair_from_formula"}
+        log_a = json.loads(Path(res["output_paths"]["cleaning_log"]).read_text(encoding="utf-8"))
+        repaired = {e["source_row"] for e in log_a if e["rule"] == "repaired_from_formula" and e["kind"] == "flag"}
+        kept_rows = set(clean["source_row"].astype(int))
+        results.append(("2b. repairable rows = repaired from the formula, kept and flagged",
+                        planted_fix <= repaired and planted_fix <= kept_rows,
+                        f"{len(planted_fix & repaired)} of {len(planted_fix)} repaired; not repaired "
+                        f"{sorted(planted_fix - repaired)[:5]}"))
+
         # 3. duplicates
         planted_dups = sum(1 for i in key["planted_issues"] if i["expected_action"].endswith("deduplicate"))
         natural = sum(n.get("count", 0) for n in key["natural_issues"] if n["issue_type"] == "exact_duplicate")

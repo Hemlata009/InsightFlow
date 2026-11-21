@@ -24,6 +24,7 @@
 - 2026-11-21: **Review priorities 1–5**: docs/setup corrected, `datetime` type, exact Decimal money maths, standard audit log + plugin traceability, harness hardened (WinError 1455), Phase 1 **frozen** with a reproduced baseline; 442 tests ([discussion 17](discussions/2026-11-21_17_review-priorities.md))
 - 2026-11-21: **Business rules BR-1..9 set by InsightFlow**, notes vs warnings, truth check (5/5 PASS on both datasets), chunked fill-from-group; baseline re-recorded → tag `phase1-v1.1`; 449 tests ([discussion 18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md))
 - 2026-11-21: **Chaos dataset SALES_003**: 76 problems in one file, every row graded (CSV 81/81, Excel 82/82, chunked 81/81); found and fixed: an invalid value blocked group filling; 453 tests ([discussion 19](discussions/2026-11-21_19_chaos-dataset.md))
+- 2026-11-21: **Safe recovery**: chaos set-aside 38% → 13%; repair from formula, partial-date strategies + hook, dateparser, IST, placeholders, overflow, Excel arithmetic; 460 tests ([discussion 20](discussions/2026-11-21_20_recover-set-aside-rows.md))
 
 ## Current
 Phase 1 finished (tag `phase1-v1.1`). Next: Phase 2 (analytics & KPIs); KPI choices still open

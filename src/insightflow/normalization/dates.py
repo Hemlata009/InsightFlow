@@ -97,17 +97,88 @@ def parse_dates(values: pd.Series, cfg: DatasetConfig, *, keep_time: bool = Fals
             for n, (unit, name) in UNIX_UNITS.items():
                 pick = text[todo][whole & digits.eq(n)]
                 if len(pick):
-                    accept(pd.to_datetime(pick.astype("int64"), unit=unit, errors="coerce"), name, in_range_only=True)
+                    utc = pd.to_datetime(pick.astype("int64"), unit=unit, errors="coerce")
+                    if p.timezone:                      # a Unix timestamp is UTC: show business time
+                        utc = utc.dt.tz_localize("UTC").dt.tz_convert(p.timezone).dt.tz_localize(None)
+                    accept(utc, name, in_range_only=True)
     if p.compact_dates and todo.any():
         compact = text[todo][text[todo].str.fullmatch(r"\d{8}").fillna(False)]
         if len(compact):
             accept(pd.to_datetime(compact, format="%Y%m%d", errors="coerce"), "compact_date", in_range_only=True)
+
+    if todo.any() and cfg.locale.timezone_abbreviations and p.timezone:
+        accept(_with_zone_abbreviation(text[todo], cfg), "timezone_abbreviation")
+    if todo.any() and p.dateparser_fallback:
+        accept(_dateparser(text[todo], cfg), "dateparser", in_range_only=True)
 
     reason = pd.Series(pd.NA, index=values.index, dtype="string")
     reason[todo] = _refusal_reasons(text[todo], p)
     reason[rule.eq("ambiguous_day_month")] = "ambiguous_day_month"
     rule[rule.eq("ambiguous_day_month")] = pd.NA
     return out, rule, reason
+
+
+_ABBREV = r"^(?P<dt>.*\d{1,2}:\d{2}(?::\d{2})?)\s+(?P<zone>[A-Z]{2,5})$"
+
+
+def _with_zone_abbreviation(left: pd.Series, cfg) -> pd.Series:
+    """'2025-03-05 10:00 IST' -> 10:00 in the zone the LOCALE says IST means (India), then business time."""
+    out = pd.Series(pd.NaT, index=left.index, dtype="datetime64[us]")
+    m = left.str.extract(_ABBREV)
+    for zone_abbr, zone in cfg.locale.timezone_abbreviations.items():
+        pick = m["zone"].eq(zone_abbr).fillna(False)
+        if not pick.any():
+            continue
+        local = pd.Series(pd.NaT, index=m.index[pick], dtype="datetime64[us]")
+        for fmt in ["%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", cfg.locale.date_format + " %H:%M",
+                    cfg.locale.date_format + " %H:%M:%S"]:
+            todo = local.isna()
+            if not todo.any():
+                break
+            local[todo] = pd.to_datetime(m.loc[local.index[todo], "dt"], format=fmt, errors="coerce")
+        ok = local.notna()
+        if ok.any():
+            conv = (local[ok].dt.tz_localize(zone, ambiguous="NaT", nonexistent="NaT")
+                    .dt.tz_convert(cfg.policies.timezone).dt.tz_localize(None))
+            out[conv.index] = conv
+    return out
+
+
+def _dateparser(left: pd.Series, cfg) -> pd.Series:
+    """Fallback for written dates, using dateparser (github.com/scrapinghub/dateparser, BSD-3-Clause).
+    Strict: day, month AND year must all be present (partial dates are handled by our own rules), only the
+    dataset's languages, no relative words ("yesterday"), no time-zone guessing, and digits-only values are
+    left to the exact Unix/compact readers."""
+    out = pd.Series(pd.NaT, index=left.index, dtype="datetime64[us]")
+    # Only WRITTEN dates (with a word: "5th March 2025", "5 मार्च 2025"). Number-only dates are left to the
+    # exact readers (so policies like two_digit_years keep control), and zoned ISO times to the time-zone rules.
+    has_word = left.str.contains(r"[^\W\d_]", regex=True).fillna(False)   # any letter (Hindi vowel signs aren't \w)
+    zoned = left.str.fullmatch(TZ_AWARE).fillna(False) | left.str.match(_ABBREV).fillna(False)
+    iso_like = left.str.match(r"^\d{4}-\d{2}-\d{2}[T ]").fillna(False)
+    candidates = left[has_word & ~zoned & ~iso_like]
+    if candidates.empty:
+        return out
+    try:
+        from dateparser.date import DateDataParser
+    except ImportError:
+        return out
+    ddp = _dateparser_cache.get((tuple(cfg.locale.languages), cfg.locale.date_order))
+    if ddp is None:
+        ddp = DateDataParser(languages=cfg.locale.languages, settings={
+            "DATE_ORDER": cfg.locale.date_order, "STRICT_PARSING": True, "RETURN_AS_TIMEZONE_AWARE": False,
+            "PARSERS": ["custom-formats", "absolute-time"]})
+        _dateparser_cache[(tuple(cfg.locale.languages), cfg.locale.date_order)] = ddp
+    for i, v in candidates.items():
+        try:
+            d = ddp.get_date_data(v)
+        except Exception:  # noqa: BLE001 - an odd string must never stop the run
+            continue
+        if d.date_obj is not None and d.period == "day":
+            out[i] = pd.Timestamp(d.date_obj)
+    return out
+
+
+_dateparser_cache: dict = {}
 
 
 def _refusal_reasons(left: pd.Series, p) -> pd.Series:

@@ -55,3 +55,7 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Schema drift: rule-book columns added/removed → warning; unknown extra columns → note | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
 | 2026-11-21 | Chaos test dataset SALES_003 (one problem per row, graded row by row) is part of the test suite | [19](discussions/2026-11-21_19_chaos-dataset.md) |
 | 2026-11-21 | Group filling learns only from values that pass the column's own rules (allowed values, ranges) | [19](discussions/2026-11-21_19_chaos-dataset.md) |
+| 2026-11-21 | Partial dates follow `policies.partial_dates` (stats / fixed / up-down / plugin hook); default 1st of month, most common year; flagged | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
+| 2026-11-21 | Two minus signs = negative (flagged); missing Order_ID = temporary ID (flagged) | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
+| 2026-11-21 | dateparser (BSD-3) for written dates only; Unix/compact dates on by default within the date range; IST mapped per locale | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
+| 2026-11-21 | Proven repairs from the formula (one bad value, one possible fix); ambiguous rows stay set aside | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |

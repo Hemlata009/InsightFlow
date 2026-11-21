@@ -15,7 +15,7 @@ from insightflow.pipeline import run_phase1
 IN = load_dataset_config("SALES_002")
 BASE = {"Order_ID": "O1", "Order_Date": "05/03/2025", "Customer_ID": "C1", "Product": "Pen Set",
         "Category": "Office Supplies", "Region": "North", "Quantity": "2", "Unit_Price": "100",
-        "Sales": "180", "Discount": "0.1", "Profit": "20"}
+        "Sales": "180", "Discount": "0.1", "Profit": "20", "State": "Delhi"}
 PRODUCTS = ["Pen Set", "Stapler", "Paper Ream", "Notebook Pack", "Desk Organizer", "Laptop", "Monitor"]
 
 
@@ -52,13 +52,27 @@ def test_fill_customer_from_other_lines_of_the_same_order():
 def test_fill_from_group_refuses_when_the_group_disagrees():
     cfg = with_policy("Customer_ID", missing_policy="fill_from_group", group_by=["Order_ID"])
     c = cleaned([{"Customer_ID": "C7"}, {"Customer_ID": "C8"}, {"Customer_ID": "-"}], cfg)
-    assert c.quarantine.loc[0, REASONS] == "group_values_conflict:Customer_ID"
+    # Customer may be blank: nothing is copied (never guess) and the row is kept blank + flagged
+    assert c.quarantine.empty and pd.isna(c.data["Customer_ID"].iloc[2])
+    assert {f["flag"] for f in c.flags} == {"group_values_conflict"}
+
+
+def test_group_conflict_on_a_required_column_sets_the_row_aside():
+    cfg = with_policy("Order_Date", missing_policy="fill_from_group", group_by=["Order_ID"], nullable=False)
+    c = cleaned([{"Order_Date": "05/03/2025"}, {"Order_Date": "06/03/2025"}, {"Order_Date": ""}], cfg)
+    assert c.quarantine.loc[0, REASONS] == "group_values_conflict:Order_Date"
+
+
+def test_invalid_value_replaced_from_the_group():
+    c = cleaned([{"Region": "North"}, {"Region": "Mars"}], IN)                     # same State (Delhi): BR-2
+    assert c.data["Region"].tolist() == ["North", "North"]
+    assert any(f["flag"] == "invalid_value_replaced" for f in c.flags)
 
 
 def test_fill_from_group_with_no_value_in_group_is_flagged():
     cfg = with_policy("Customer_ID", missing_policy="fill_from_group", group_by=["Order_ID"])
     c = cleaned([{"Order_ID": "O5", "Customer_ID": "NA"}, {"Order_ID": "NA", "Customer_ID": "NA"}], cfg)
-    assert {f["flag"] for f in c.flags} == {"missing_value_no_group_value"}
+    assert "missing_value_no_group_value" in {f["flag"] for f in c.flags}
 
 
 def test_fill_order_date_from_the_order():

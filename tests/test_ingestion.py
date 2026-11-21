@@ -135,8 +135,9 @@ def test_no_header_found(tmp_path):
 
 def test_ragged_rows_set_aside_not_dropped(tmp_path):
     r = read_file(write(tmp_path / "r.csv", "a,b,c\n1,2,3\n4,5\n6,7,8,9\n10,11,12,,\n"))
-    assert r.metadata.rows == 2                                   # rows 2 and 5 (trailing empties ok)
-    assert [b["source_row"] for b in r.bad_rows] == [3, 4]
+    assert r.metadata.rows == 3                                   # rows 2, 4 (extras kept aside) and 5
+    assert [b["source_row"] for b in r.bad_rows] == [3]           # too FEW fields: can't be placed
+    assert r.data.loc[1, "_overflow"] == '["9"]' and any("more cells than the header" in w for w in r.warnings)
 
 
 # ---------------------------------------------------------------- Excel specifics

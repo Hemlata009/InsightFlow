@@ -88,9 +88,9 @@ PLAN = [
     ("magnitude_suffix", "Sales", "normalize", lambda r: abs(r["Sales"]) >= 1000),
     ("accounting_negative", "Profit", "normalize", lambda r: r["Profit"] < 0),
     ("percent_string", "Discount", "normalize", lambda r: r["Discount"] > 0),
-    ("non_numeric_text", "Unit_Price", "quarantine", None),
+    ("non_numeric_text", "Unit_Price", "repair_from_formula", None),
     ("invalid_quantity", "Quantity", "quarantine", None),
-    ("invalid_discount", "Discount", "quarantine", None),
+    ("invalid_discount", "Discount", "repair_from_formula", None),
     ("whitespace_case", "Product", "normalize", None),
     ("whitespace_case", "Region", "normalize", None),
     ("exact_duplicate", None, "deduplicate", None),
@@ -161,7 +161,9 @@ def expected_of(issue: str, col: str | None, row: pd.Series):
     return v
 
 
-def make_messy(truth: pd.DataFrame, locale: str, seed: int, rate: float = 0.004):
+def make_messy(truth: pd.DataFrame, locale: str, seed: int, rate: float = 0.004,
+               expected_overrides: dict | None = None):
+    """expected_overrides: issue_type -> expected_action that differs for this dataset's rules."""
     """Return (messy_df with canonical column names, planted_issue_list)."""
     rng = np.random.default_rng(seed)
     n = len(truth)
@@ -171,6 +173,7 @@ def make_messy(truth: pd.DataFrame, locale: str, seed: int, rate: float = 0.004)
     assignments: dict[int, tuple] = {}   # truth index -> (issue, col, action)
 
     for issue, col, action, cond in PLAN:
+        action = (expected_overrides or {}).get(issue, action)
         picked = 0
         for idx in order:
             if picked == per_issue:

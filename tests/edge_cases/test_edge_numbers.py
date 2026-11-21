@@ -94,5 +94,6 @@ def test_normalizer_in_european_locale_does_not_misread_plain_looking_numbers():
 
 
 @pytest.mark.parametrize("text", ["(500-)", "-(500)", "--500", "-500-", "(-500)", "-₹-500"])
-def test_two_minus_markers_are_refused(text):
-    assert reason(text, IN.locale) == "conflicting_signs"
+def test_two_minus_markers_mean_negative_and_are_marked(text):   # user decision 2026-11-21
+    value, how = parse_number(text, IN.locale)
+    assert value == -500 and "double_minus" in how

@@ -34,6 +34,7 @@ class NormalizeResult:
     warnings: list[str] = field(default_factory=list)
     missing_required: list[str] = field(default_factory=list)
     pending_conversions: list[tuple] = field(default_factory=list)   # (index, column, amount, code, text)
+    flags: list[dict] = field(default_factory=list)       # values accepted but worth a human look
 
 
 def normalize(raw: pd.DataFrame, cfg: DatasetConfig, *,
@@ -89,6 +90,11 @@ def normalize(raw: pd.DataFrame, cfg: DatasetConfig, *,
 
     if res.pending_conversions:
         _convert_foreign(res, cfg, rows)
+    if "_overflow" in raw.columns:           # the reader kept extra trailing cells: flag those rows
+        for r, v in zip(rows, raw["_overflow"]):
+            if isinstance(v, str) and v:
+                res.flags.append({"stage": "normalize", "flag": "extra_cells_overflow", "source_row": int(r),
+                                  "column": "_overflow", "detail": f"extra cells beyond the header: {v}"})
 
     ordered = [SOURCE_ROW] + [c for c in cfg.columns if c in res.data] + \
               [c for c in res.data if c != SOURCE_ROW and c not in cfg.columns]
@@ -193,6 +199,9 @@ def _numbers(text, spec, cfg, rows, col, res) -> pd.Series:
             continue
         out[i] = value
         res.changes.append(_chg(f"number:{how}", rows[i], col, text[i], value))
+        if "double_minus" in how:            # several minus signs: read as negative, but worth a look
+            res.flags.append({"stage": "normalize", "flag": "double_minus_sign", "source_row": int(rows[i]),
+                              "column": col, "detail": f"{text[i]!r} read as {value}"})
     if spec.type == "integer":
         not_whole = out.notna() & (out != out.round())
         for i in out[not_whole].index:

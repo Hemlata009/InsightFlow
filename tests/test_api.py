@@ -42,11 +42,11 @@ def test_profile_sample(client):
 
 def test_run_sample_then_browse_results(client):
     res = client.post("/api/run", data={"dataset_id": "SALES_002", "sample": "sales_messy.csv"}).json()
-    assert res["status"] == "completed_with_warnings" and res["rows_quarantined"] == 16
+    assert res["status"] == "completed_with_warnings" and res["rows_quarantined"] == 8     # 8 repaired
     latest = client.get("/api/runs/SALES_002/latest").json()
-    assert latest["metadata"]["result"]["rows_output"] == 989
+    assert latest["metadata"]["result"]["rows_output"] == 997          # 989 + 8 repaired from the formula
     t = client.get("/api/runs/SALES_002/table/quarantine?limit=5").json()
-    assert t["total"] == 16 and len(t["rows"]) == 5 and "_reasons" in t["columns"]
+    assert t["total"] == 8 and len(t["rows"]) == 5 and "_reasons" in t["columns"]
     s = client.get("/api/runs/SALES_002/table/cleaned?search=Laptop&limit=3").json()
     assert s["total"] > 0 and all("Laptop" in " ".join(r.values()) for r in s["rows"])
     log = client.get("/api/runs/SALES_002/log?stage=clean&rule=derived").json()

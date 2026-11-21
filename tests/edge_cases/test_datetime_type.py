@@ -41,7 +41,7 @@ def test_date_type_still_drops_time():
 def test_unix_milliseconds_keep_time():
     c = IN.model_copy(deep=True)
     c.policies.unix_timestamps = True
-    assert dt(["1741185000000"], cfg=c)[0] == ["2025-03-05 14:30:00"]     # 14:30 UTC (naive = as given)
+    assert dt(["1741185000000"], cfg=c)[0] == ["2025-03-05 20:00:00"]     # 14:30 UTC = 20:00 in India
 
 
 def _with_ship_time(tmp_path):

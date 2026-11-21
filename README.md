@@ -15,7 +15,7 @@ will reach it through AI assistants (Claude, ChatGPT), a **React web UI**, and s
 ## Status
 
 **Phase 1 complete and frozen** (tag `phase1-v1.1`): data intake & quality engine.
-**453 tests passing** (`python -m harness test -q`: 3 groups). Truth check:
+**460 tests passing** (`python -m harness test -q`: 3 groups). Truth check:
 `python -m harness run -- python -m scripts.check_against_truth SALES_002`. Chaos check (every problem in one
 file, graded row by row): `python -m harness run -- python -m scripts.check_chaos --chunked`. Verified baseline in
 [docs/phase1-baseline.md](docs/phase1-baseline.md). Next: Phase 2 (analytics & KPIs).
@@ -85,6 +85,7 @@ Outputs: `data/processed/<ID>/` (cleaned CSV, quality_report.json, cleaning_log.
 | defusedxml | safe XML reading | PSF |
 | pluggy | plugins (add-on steps) | MIT |
 | tzdata | time-zone data on Windows | Apache-2.0 |
+| dateparser | written dates ("5th March 2025", Hindi months) | BSD-3-Clause |
 | fastapi, uvicorn, python-multipart *(extra `api`)* | local web API for the UI | MIT / BSD-3 / Apache-2.0 |
 | pytest, psutil, httpx *(extra `dev`)* | tests and the local harness | MIT / BSD-3 / BSD-3 |
 | React 19, Vite, TypeScript *(web/)* | web UI | MIT / MIT / Apache-2.0 |

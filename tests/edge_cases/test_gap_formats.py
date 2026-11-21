@@ -92,13 +92,15 @@ def test_merged_cells_without_header_option(tmp_path):
 
 
 # ---------------- formulas saved without results
-def test_uncalculated_formulas_are_set_aside(tmp_path):
+def test_simple_formulas_are_calculated_others_set_aside(tmp_path):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["Order_ID", "Qty", "Price", "Sales"])
+    ws.append(["A0", 2, 100, "=B2*C2*(1-0.1)"])  # arithmetic only: calculated by InsightFlow
     ws.append(["A1", 2, 100, 200])
-    ws.append(["A2", 3, 100, "=B3*C3"])      # openpyxl writes the formula but no cached result
+    ws.append(["A2", 3, 100, "=SUM(B4:C4)"])  # a function: not guessed -> set aside
     wb.save(tmp_path / "f.xlsx")
     r = read_file(tmp_path / "f.xlsx")
-    assert r.metadata.rows == 1 and r.bad_rows[0]["source_row"] == 3
+    assert r.metadata.rows == 2 and r.data.loc[0, "Sales"] == "180" and r.bad_rows[0]["source_row"] == 4
+    assert any("calculated by InsightFlow" in w for w in r.warnings)
     assert "uncalculated formula" in r.bad_rows[0]["reason"] and any("never recalculated" in w for w in r.warnings)

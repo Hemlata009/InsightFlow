@@ -23,8 +23,11 @@ import pandas as pd
 from insightflow.audit.log import AuditLog
 from insightflow.audit.writer import SOURCE_ROW_OUT, _json, to_output_frame
 from insightflow.cleaning import REASONS, clean
+from insightflow.cleaning.repair import add_original_text, candidate_rows, repair_rows
 from insightflow.ingestion import SOURCE_ROW, IngestionError, IngestOptions, read_file
+from insightflow.ingestion.reader import OVERFLOW
 from insightflow.normalization import normalize
+from insightflow.normalization.partial_dates import resolve_partial_dates
 from insightflow.profiling import profile
 
 STREAMABLE = {"csv", "jsonl", "parquet"}
@@ -53,7 +56,9 @@ class ChunkedRun:
             p = Path(tmp) / f"sample{self.path.suffix}"
             p.write_bytes(sample)
             r = read_file(p, known_headers=known_headers, options=IngestOptions(check_memory=False))
-        self.meta, self.columns, self.header_row = r.metadata, r.metadata.columns, r.metadata.header_row
+        self.meta, self.header_row = r.metadata, r.metadata.header_row
+        self.columns = [c for c in r.metadata.columns if c != OVERFLOW]   # the header itself, without extras
+        self.overflow_rows = 0
         if self.fmt == "jsonl":
             self.columns = self._jsonl_keys()
 
@@ -80,32 +85,38 @@ class ChunkedRun:
         else:
             yield from self._parquet_chunks(size)
 
-    def _frame(self, rows):
+    def _frame(self, rows, overflow=None):
         df = pd.DataFrame([r for _, r in rows], columns=self.columns, dtype="string")
         df.insert(0, SOURCE_ROW, [n for n, _ in rows])
+        if self.fmt == "csv":                       # always present in pieces; dropped at the end if unused
+            df[OVERFLOW] = pd.array([(overflow or {}).get(n) for n, _ in rows], dtype="string")
         return df
 
     def _csv_chunks(self, size):
         width = len(self.columns)
         with open(self.path, encoding=self.meta.encoding, newline="") as f:
             reader = csv.reader(f, delimiter=self.meta.delimiter)
-            rows, bad = [], []
+            rows, bad, over = [], [], {}
             for record in reader:
                 line = reader.line_num
                 if line <= self.header_row or not any(c.strip() for c in record):
                     continue
                 if len(record) > width and not any(c.strip() for c in record[width:]):
                     record = record[:width]
+                if len(record) > width:             # extra cells at the END: kept aside (as in-memory)
+                    over[line] = json.dumps(record[width:], ensure_ascii=False)
+                    record = record[:width]
+                    self.overflow_rows += 1
                 if len(record) != width:
                     bad.append({"source_row": line, "reason": f"{len(record)} fields, expected {width}",
                                 "values": record})
                     continue
                 rows.append((line, record))
                 if len(rows) >= size:
-                    yield self._frame(rows), bad
-                    rows, bad = [], []
+                    yield self._frame(rows, over), bad
+                    rows, bad, over = [], [], {}
             if rows or bad:
-                yield self._frame(rows), bad
+                yield self._frame(rows, over), bad
 
     def _jsonl_chunks(self, size):
         from insightflow.ingestion.reader import _json_text
@@ -191,13 +202,15 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                     first_log[0] = False
 
             spellings = _whole_file_spellings(run, cfg, p.chunk_rows)
-            group_values = _whole_file_group_values(run, cfg, p.chunk_rows, spellings)
+            group_values, partial_ctx = _whole_file_group_values(run, cfg, p.chunk_rows, spellings)
             for i, (raw, bad) in enumerate(run.chunks(p.chunk_rows)):
                 counts["rows_input"] += len(raw) + len(bad)
                 if before is None and len(raw):
                     before = profile(raw, cfg, run.meta)
                     before["sampled"] = f"first piece only ({len(raw):,} rows)"
                 norm = normalize(raw, cfg, spellings=spellings) if len(raw) else None
+                if norm is not None:
+                    resolve_partial_dates(norm, cfg, None, contexts=partial_ctx)
                 if norm is not None and norm.missing_required:
                     raise IngestionError("missing_required_columns",
                                          f"required column(s) not found: {norm.missing_required}")
@@ -216,6 +229,21 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                 for b in bad:
                     reasons[b["source_row"]] = f"unreadable_row:{b['reason']}"
                 kept = cleaned.data[~cleaned.data[SOURCE_ROW].isin(reasons)] if cleaned is not None else None
+                repair_flags = []
+                if cleaned is not None:                 # proven repairs from the formula (as in-memory)
+                    failed_val = {f["source_row"] for f in val.failures if f["severity"] == "quarantine"}
+                    repaired, repair_log, repair_flags = repair_rows(
+                        candidate_rows(norm.data, cleaned, failed_val), reasons, cfg)
+                    if len(repaired):
+                        fixed = set(repaired[SOURCE_ROW].astype(int))
+                        kept = pd.concat([kept, repaired], ignore_index=True).sort_values(SOURCE_ROW)
+                        for r in fixed:
+                            reasons.pop(r, None)
+                        val.failures = [f for f in val.failures if f["source_row"] not in fixed]
+                        add_original_text(repair_log, raw, norm.header_changes)
+                        emit(repair_log)
+                        for e in repair_log:
+                            counts["transformations"][e["rule"]] = counts["transformations"].get(e["rule"], 0) + 1
 
                 # quarantine: ORIGINAL text + reasons, appended piece by piece
                 q = raw.set_index(SOURCE_ROW).reindex(sorted(reasons)).reset_index()
@@ -231,7 +259,8 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
 
                 if kept is not None and len(kept):
                     kept_set = set(kept[SOURCE_ROW].astype(int))
-                    flags = [f for f in (cleaned.flags + [f for f in val.failures if f["severity"] == "flag"])
+                    flags = [f for f in (cleaned.flags + repair_flags +
+                                         [f for f in val.failures if f["severity"] == "flag"])
                              if f["source_row"] in kept_set]
                     counts["flags"] |= {f["source_row"] for f in flags}
                     for f in val.failures:
@@ -257,6 +286,10 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
             dup_rows, conflict_rows, kept_rows = 0, 0, 0
             if _table_exists(con, "stage"):
                 cols = [r[0] for r in con.execute("DESCRIBE stage").fetchall()]
+                if OVERFLOW in cols and not con.execute(
+                        f"SELECT count(*) FROM stage WHERE {_q(OVERFLOW)} IS NOT NULL").fetchone()[0]:
+                    con.execute(f"ALTER TABLE stage DROP COLUMN {_q(OVERFLOW)}")    # no row used it
+                    cols.remove(OVERFLOW)
                 values = ", ".join(_q(c) for c in cols if c != SOURCE_ROW_OUT)
                 con.execute(f"""CREATE TABLE ranked AS SELECT *,
                     row_number() OVER (PARTITION BY {values} ORDER BY {_q(SOURCE_ROW_OUT)}) AS _rn,
@@ -298,6 +331,9 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
         con.close()
         shutil.rmtree(work, ignore_errors=True)
 
+    if getattr(run, "overflow_rows", 0):
+        warnings.append(f"{run.overflow_rows} row(s) had more cells than the header; the extra cells are kept in "
+                        f"column '{OVERFLOW}' and the rows are flagged")
     n_in = counts["rows_input"]
     if kept_rows + counts["quarantined"] + dup_rows != n_in:
         raise RuntimeError("row accounting mismatch in chunked mode")
@@ -357,18 +393,26 @@ def _whole_file_group_values(run, cfg, size, spellings) -> dict:
     the WHOLE file, so a blank in one piece can be filled from a row in another piece."""
     from insightflow.cleaning.cleaner import group_value_map
 
+    from insightflow.normalization.partial_dates import PartialDateContext
+
     cols = {c: s.group_by for c, s in cfg.columns.items() if s.missing_policy == "fill_from_group"}
-    if not cols:
-        return {}
+    date_cols = [c for c, s in cfg.columns.items() if s.type in ("date", "datetime")]
     maps: dict[str, dict] = {c: {} for c in cols}
+    ctxs = {c: PartialDateContext() for c in date_cols}
     for raw, _bad in run.chunks(size):
         if not len(raw):
             continue
         norm = normalize(raw, cfg, spellings=spellings)
+        for col in date_cols:
+            if col in norm.data:
+                partial = {i["source_row"] for i in norm.issues
+                           if i["column"] == col and i["reason"] in ("missing_day", "missing_year")}
+                ctxs[col].update(norm.data[col], norm.data[SOURCE_ROW], partial)
+        resolve_partial_dates(norm, cfg, None, contexts=ctxs)       # so group values see completed dates
         for col, group_by in cols.items():
             if col in norm.data and all(g in norm.data for g in group_by):
                 group_value_map(norm.data, col, group_by, into=maps[col], spec=cfg.columns[col])
-    return maps
+    return maps, ctxs
 
 
 def _without_whole_table_policies(cfg, warnings):
