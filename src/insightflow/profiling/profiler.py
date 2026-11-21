@@ -101,7 +101,8 @@ def _profile_column(s: pd.Series, raw: str, canonical: str | None, cfg, null_mar
         col["needs_normalization"] = int((fams.eq("numeric") & ~patterns.isin(PLAIN_NUMBER)).sum())
         if spec.type == "integer":
             col["decimals_in_integer_column"] = int(patterns.eq("decimal").sum())
-        plain = pd.to_numeric(values[patterns.isin(PLAIN_NUMBER)], errors="coerce")
+        dot_decimal = cfg.locale.decimal_separator == "."
+        plain = pd.to_numeric(values[patterns.isin(PLAIN_NUMBER) & dot_decimal], errors="coerce")
         if len(plain):
             col["plain_min"], col["plain_max"] = float(plain.min()), float(plain.max())
         out = pd.Series(False, index=plain.index)

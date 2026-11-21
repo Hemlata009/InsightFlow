@@ -132,7 +132,9 @@ def _numbers(text, spec, cfg, rows, col, res) -> pd.Series:
     p, loc = cfg.policies, cfg.locale
     pattern = classify(text)
     out = pd.Series(pd.NA, index=text.index, dtype="Float64")
-    plain = text.notna() & pattern.isin(PLAIN_NUMBER)
+    # Fast path only where "1.5" really means one-point-five, and only for values a float holds exactly.
+    plain = text.notna() & pattern.isin(PLAIN_NUMBER) & (loc.decimal_separator == ".")
+    plain &= text.str.replace(r"[^0-9]", "", regex=True).str.lstrip("0").str.len().le(15).fillna(False)
     out[plain] = pd.to_numeric(text[plain].str.strip(), errors="coerce").astype("Float64")
     for i in text[text.notna() & ~plain].index:
         try:

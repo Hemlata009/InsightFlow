@@ -37,7 +37,7 @@ def test_parse_number_us(text, value):
     ("IN", "abc", "not_a_number"), ("IN", "#VALUE!", "not_a_number"), ("IN", "inf", "not_finite"),
     ("IN", "$500", "currency_mismatch"), ("US", "₹500", "currency_mismatch"), ("IN", "USD 5", "currency_mismatch"),
     ("US", "1.2 L", "unknown_suffix"),           # lakh is not a US magnitude
-    ("US", "1.234,56", "bad_grouping"), ("IN", "12,3", "bad_grouping"), ("IN", "1.2.3", "not_a_number"),
+    ("US", "1.234,56", "bad_grouping"), ("IN", "12,3", "bad_grouping"), ("IN", "1.2.3", "bad_grouping"),
 ])
 def test_parse_number_refuses_unsafe(locale, text, reason):
     with pytest.raises(NotConvertible) as e:

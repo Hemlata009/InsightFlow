@@ -32,3 +32,18 @@ en_US:
     MN: 1.0e6
     B: 1.0e9
     BN: 1.0e9
+
+de_DE:
+  description: Germany / continental Europe
+  currency_symbol: "€"
+  currency_code: EUR
+  date_order: DMY                 # 05.03.2026 = 5 March 2026
+  date_format: "%d.%m.%Y"
+  decimal_separator: ","          # 1.234,56 = one thousand two hundred thirty-four point five six
+  thousands_separator: "."
+  grouping: international
+  magnitudes:
+    K: 1.0e3
+    TSD: 1.0e3
+    MIO: 1.0e6
+    MRD: 1.0e9
