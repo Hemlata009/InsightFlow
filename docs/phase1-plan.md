@@ -30,8 +30,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 1 | `data/sample` | SALES_001 (Superstore) + SALES_002 (India) with planted issues + answer keys | ✅ done |
 | 2 | `configs/` | Layered rule book + validated loader (`insightflow.config`) | ✅ done |
 | 3 | `ingestion` | Safe CSV/Excel reader + file metadata + repeat-upload registry | ✅ done |
-| 4 | `profiling` | Column-level quality report before changes | ⏳ next |
-| 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | |
+| 4 | `profiling` | Column-level health report before changes (patterns, ranges, duplicates) | ✅ done |
+| 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ⏳ next |
 | 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | |
 | 7 | `validation` | Pandera schema from config + business rules | |
 | 8 | `audit` | cleaning_log, quality_report, metadata, result object | |

@@ -23,3 +23,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Reader returns every cell as text + `_source_row`; it never interprets values, renames headers or modifies files | [09](discussions/2026-11-21_09_ingestion.md) |
 | 2026-11-21 | Unreadable files fail with stable error codes; rows with the wrong field count are set aside in `bad_rows`, never dropped | [09](discussions/2026-11-21_09_ingestion.md) |
 | 2026-11-21 | Max input file 50 MB by default (low-RAM PC); chunked reading deferred | [09](discussions/2026-11-21_09_ingestion.md) |
+| 2026-11-21 | Profiler only observes: classifies value patterns and checks them against the rule book; converts nothing | [10](discussions/2026-11-21_10_profiling.md) |
