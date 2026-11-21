@@ -29,6 +29,13 @@ duplicates:
   key: []                           # business key; set by the domain/dataset layer
   key_conflict: flag                # same key, different values -> flag for review
 
+# Currency conversion (ECB reference rates, offline). Off by default: amounts stay in the dataset currency.
+currency:
+  foreign_amounts: refuse          # refuse | convert  ("US$100" in an INR dataset, at the row's date)
+  reporting_currency: null         # e.g. USD -> adds Sales_USD, Profit_USD, Unit_Price_USD to the output
+  rate_date_column: null           # e.g. Order_Date
+  max_rate_age_days: 7             # weekends/holidays: use the last rate up to 7 days earlier
+
 # Columns and rules are defined by the domain layer.
 columns: {}
 rules: {}

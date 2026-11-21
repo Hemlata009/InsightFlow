@@ -30,9 +30,10 @@ _SUFFIX = re.compile(r"^(?P<num>[\d.,]+)\s*(?P<suf>[A-Za-z]+)$")
 class NotConvertible(ValueError):
     """The value cannot be converted safely. `reason` is a short code for the log/quarantine."""
 
-    def __init__(self, reason: str, detail: str = ""):
+    def __init__(self, reason: str, detail: str = "", currency: str | None = None):
         super().__init__(f"{reason}: {detail}" if detail else reason)
         self.reason = reason
+        self.currency = currency          # for currency_mismatch: the ISO code found (None if ambiguous)
 
 
 def _grouping_patterns(loc: LocaleSpec):
@@ -53,11 +54,17 @@ def _strip_currency(s: str, loc: LocaleSpec, steps: list[str], original: str) ->
             if token != loc.currency_symbol:
                 raise NotConvertible("currency_mismatch", f"{token} in a {loc.currency_code} dataset")
         elif code != loc.currency_code:
-            raise NotConvertible("currency_mismatch", f"{code} amount in a {loc.currency_code} dataset")
+            raise NotConvertible("currency_mismatch", f"{code} amount in a {loc.currency_code} dataset", currency=code)
         s = re.sub(pattern, " ", s, count=1).strip()
         steps.append("currency_removed")
         break
     return s
+
+
+def parse_foreign_amount(text: str, locale: LocaleSpec, code: str) -> float:
+    """Parse an amount written in another currency (same number style as the dataset)."""
+    foreign = locale.model_copy(update={"currency_code": code})
+    return parse_number(text, foreign, allow_percent=False)[0]
 
 
 def parse_number(text: str, locale: LocaleSpec, *, allow_percent: bool = True,

@@ -19,7 +19,7 @@ from insightflow.ingestion import SOURCE_ROW
 from insightflow.profiling.patterns import PLAIN_NUMBER, classify
 
 from .dates import parse_dates
-from .numbers import NotConvertible, parse_number
+from .numbers import NotConvertible, parse_foreign_amount, parse_number
 
 BOOL_TRUE = {"yes", "y", "true", "t", "1"}
 BOOL_FALSE = {"no", "n", "false", "f", "0"}
@@ -33,6 +33,7 @@ class NormalizeResult:
     header_changes: dict[str, str] = field(default_factory=dict)   # raw header -> canonical
     warnings: list[str] = field(default_factory=list)
     missing_required: list[str] = field(default_factory=list)
+    pending_conversions: list[tuple] = field(default_factory=list)   # (index, column, amount, code, text)
 
 
 def normalize(raw: pd.DataFrame, cfg: DatasetConfig) -> NormalizeResult:
@@ -83,10 +84,37 @@ def normalize(raw: pd.DataFrame, cfg: DatasetConfig) -> NormalizeResult:
         else:
             res.data[canon] = _booleans(text, rows, canon, res)
 
+    if res.pending_conversions:
+        _convert_foreign(res, cfg, rows)
+
     ordered = [SOURCE_ROW] + [c for c in cfg.columns if c in res.data] + \
               [c for c in res.data if c != SOURCE_ROW and c not in cfg.columns]
     res.data = res.data[ordered]
     return res
+
+
+def _convert_foreign(res, cfg, rows):
+    """Convert amounts written in another currency into the dataset currency, at the row's date."""
+    from .currency import Rates
+
+    rates = Rates(cfg.currency.max_rate_age_days)
+    date_col = cfg.currency.rate_date_column
+    dates = res.data[date_col] if date_col in res.data else None
+    for i, col, amount, code, text in res.pending_conversions:
+        day = dates[i] if dates is not None else pd.NaT
+        if pd.isna(day):
+            res.issues.append(_issue(rows[i], col, text, "conversion_needs_date"))
+            continue
+        try:
+            rate, rate_day = rates.rate(code, cfg.locale.currency_code, day.date())
+        except NotConvertible as e:
+            res.issues.append(_issue(rows[i], col, text, e.reason))
+            continue
+        value = round(amount * rate, 4)
+        res.data.loc[i, col] = value
+        c = _chg("currency_converted", rows[i], col, text, value)
+        c["detail"] = f"{amount} {code} x {rate:.6f} = {value} {cfg.locale.currency_code} (ECB rate of {rate_day})"
+        res.changes.append(c)
 
 
 def _chg(rule, row, col, old, new):
@@ -142,6 +170,14 @@ def _numbers(text, spec, cfg, rows, col, res) -> pd.Series:
                                       allow_magnitude=p.magnitude_suffixes,
                                       allow_accounting=p.accounting_negatives)
         except NotConvertible as e:
+            if (e.reason == "currency_mismatch" and e.currency and spec.money
+                    and cfg.currency.foreign_amounts == "convert"):
+                try:
+                    amount = parse_foreign_amount(text[i], loc, e.currency)
+                    res.pending_conversions.append((i, col, amount, e.currency, text[i]))
+                    continue
+                except NotConvertible as e2:
+                    e = e2
             res.issues.append(_issue(rows[i], col, text[i], e.reason))
             continue
         out[i] = value

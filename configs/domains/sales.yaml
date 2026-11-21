@@ -58,6 +58,7 @@ columns:
     description: Units sold. Negative = return (only if the dataset allows returns). Zero is invalid.
   Unit_Price:
     type: float
+    money: true
     required: true
     missing_policy: derive
     derive_expression: "Sales / (Quantity * (1 - Discount))"
@@ -67,6 +68,7 @@ columns:
     description: Price of one unit before discount, in the dataset currency.
   Sales:
     type: float
+    money: true
     required: true
     nullable: false
     missing_policy: derive
@@ -86,6 +88,7 @@ columns:
     description: Discount as a FRACTION (0.2 = 20%). "20%" text is converted to 0.2.
   Profit:
     type: float
+    money: true
     required: true
     missing_policy: keep_and_flag
     aliases: [profit, margin_amount, net_profit]
@@ -147,4 +150,3 @@ rules:
 business:
   returns_allowed: false           # negative Quantity/Sales allowed? (dataset decides)
   negative_profit_allowed: true    # losses are real
-  currency_conversion: false       # never convert currencies in Phase 1

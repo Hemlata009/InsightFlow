@@ -41,6 +41,7 @@ class ColumnSpec(Strict):
     allowed_values: list[str] | None = None
     aliases: list[str] = Field(default_factory=list)
     normalize_case: bool = False      # "NORTH"/" north " -> the known/most common spelling
+    money: bool = False               # an amount in the dataset currency (used by currency conversion)
     derive_expression: str | None = None   # used when missing_policy == "derive", e.g. "Sales / Quantity"
     derive_round: int | None = None
     group_by: list[str] = Field(default_factory=list)   # fill_from_group: copy the value other rows of the group agree on
@@ -154,7 +155,13 @@ class DuplicatePolicy(Strict):
 class Business(Strict):
     returns_allowed: bool = False
     negative_profit_allowed: bool = True
-    currency_conversion: bool = False
+
+
+class CurrencyPolicy(Strict):
+    foreign_amounts: Literal["refuse", "convert"] = "refuse"   # e.g. "US$100" in an INR dataset
+    reporting_currency: str | None = None    # add <column>_<CODE> copies of money columns, e.g. Sales_USD
+    rate_date_column: str | None = None      # which date's rate to use (the transaction date)
+    max_rate_age_days: int = Field(7, ge=0, le=31)   # weekends/holidays: last rate up to N days earlier
 
 
 class DateRange(Strict):
@@ -174,6 +181,7 @@ class DatasetConfig(Strict):
     columns: dict[str, ColumnSpec]
     rules: dict[str, RuleSpec]
     business: Business = Field(default_factory=Business)
+    currency: CurrencyPolicy = Field(default_factory=CurrencyPolicy)
 
     @model_validator(mode="after")
     def _check(self):
@@ -192,6 +200,15 @@ class DatasetConfig(Strict):
         for col, spec in self.columns.items():
             if set(spec.group_by) - names or col in spec.group_by:
                 raise ValueError(f"{col}: group_by must list other existing columns")
+        c = self.currency
+        if c.foreign_amounts == "convert" or c.reporting_currency:
+            col = c.rate_date_column
+            if not col or col not in self.columns or self.columns[col].type != "date":
+                raise ValueError("currency conversion needs rate_date_column = an existing date column")
+            if not any(s.money for s in self.columns.values()):
+                raise ValueError("currency conversion needs at least one column with money: true")
+        if c.reporting_currency and not re.fullmatch(r"[A-Z]{3}", c.reporting_currency):
+            raise ValueError(f"reporting_currency must be a 3-letter ISO code, got {c.reporting_currency!r}")
         unknown = set(self.duplicates.key) - names
         if unknown:
             raise ValueError(f"duplicate key uses unknown column(s): {sorted(unknown)}")

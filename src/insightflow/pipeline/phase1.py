@@ -106,6 +106,13 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
     quarantine[REASONS] = [q_reasons[r] for r in q_rows]
 
     # flags only matter for rows we keep; a quarantined row's extra flags stay in the log only
+    currency_info = {}
+    if cfg.currency.reporting_currency:
+        from insightflow.normalization.currency import add_reporting_columns
+        final, currency_info = add_reporting_columns(final, cfg)
+        if currency_info["rows_without_rate"]:
+            warnings.append(f"{currency_info['rows_without_rate']} row(s) have no {currency_info['reporting_currency']} "
+                            f"rate for their date; their {currency_info['reporting_currency']} columns are blank")
     kept = set(final[SOURCE_ROW].astype(int))
     effective = [f for f in val.failures if f["severity"] == "quarantine" or f["source_row"] in kept]
     flags = [f for f in cleaned.flags + [f for f in val.failures if f["severity"] == "flag"]
@@ -138,6 +145,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
                   "flags": _count(flags, "flag", fallback="check")},
         "validation": {"checks_run": val.checks_run, "summary": _summary(effective)},
         "quarantine_share": round(share, 4),
+        "currency": currency_info or None,
     }
     metadata = _metadata(result, cfg, meta, started, str(raw_copy), config_dir)
     result["output_paths"] = write_run(
