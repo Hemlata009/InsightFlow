@@ -26,7 +26,7 @@ from insightflow.pipeline.phase1 import DATA_ROOT, ROOT, run_phase1
 from insightflow.profiling import profile
 
 WEB_DIST = ROOT / "web" / "dist"
-ALLOWED_SUFFIXES = {".csv", ".xlsx"}
+ALLOWED_SUFFIXES = {".csv", ".tsv", ".txt", ".xlsx", ".json", ".jsonl", ".ndjson", ".parquet"}
 TABLES = {"cleaned": ("processed", None), "quarantine": ("quarantine", "quarantined_rows.csv"),
           "duplicates": ("quarantine", "duplicates_removed.csv")}
 _ID = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
@@ -52,7 +52,7 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
         if upload is not None and upload.filename:
             name = Path(upload.filename).name
             if Path(name).suffix.lower() not in ALLOWED_SUFFIXES:
-                raise HTTPException(400, "only .csv and .xlsx files are supported")
+                raise HTTPException(400, f"supported files: {sorted(ALLOWED_SUFFIXES)}")
             safe = re.sub(r"[^A-Za-z0-9._\- ]", "_", name)
             target = data_root / "uploads" / uuid.uuid4().hex[:12] / safe
             target.parent.mkdir(parents=True, exist_ok=True)

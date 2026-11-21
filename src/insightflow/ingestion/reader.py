@@ -22,7 +22,12 @@ from pathlib import Path
 import pandas as pd
 
 SOURCE_ROW = "_source_row"
-SUPPORTED = {".csv": "csv", ".xlsx": "xlsx"}
+SUPPORTED = {".csv": "csv", ".tsv": "csv", ".txt": "csv", ".xlsx": "xlsx", ".json": "json",
+             ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet"}
+PARQUET_MAGIC = b"PAR1"
+UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
+# Rough RAM needed per MB of file (text in pandas is ~10x its size on disk; xlsx is zipped)
+MEMORY_FACTOR = {"csv": 10, "json": 12, "jsonl": 12, "xlsx": 40, "parquet": 15}
 ZIP_MAGIC = b"PK\x03\x04"
 OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"          # old .xls and password-protected .xlsx
 ENCRYPTED_MARK = "EncryptedPackage".encode("utf-16-le")
@@ -45,6 +50,8 @@ class IngestOptions:
     sheet: str | None = None         # Excel: force a sheet; otherwise chosen automatically
     encoding: str | None = None      # CSV: force an encoding; otherwise detected
     delimiter: str | None = None     # CSV: force a delimiter; otherwise detected
+    check_memory: bool = True        # refuse files that would not fit in the free RAM
+    safety_margin_mb: float = 300    # keep this much RAM free for the rest of the PC
 
 
 @dataclass
@@ -93,6 +100,8 @@ def read_file(path: str | Path, *, known_headers: set[str] | None = None,
     if size > opts.max_file_mb * 2**20:
         raise IngestionError("too_large", f"{path.name} is {size / 2**20:.1f} MB > limit {opts.max_file_mb} MB")
 
+    if opts.check_memory:
+        _check_memory(size, fmt, opts, path.name)
     raw = path.read_bytes()             # read once; the file itself is never modified
     _check_signature(raw, fmt, path.name)
 
@@ -102,9 +111,28 @@ def read_file(path: str | Path, *, known_headers: set[str] | None = None,
     warnings: list[str] = []
     if fmt == "csv":
         rows = _csv_rows(raw, opts, meta, warnings)
-    else:
+    elif fmt == "xlsx":
         rows = _xlsx_rows(raw, opts, meta, warnings, known_headers)
+    elif fmt in ("json", "jsonl"):
+        rows, bad = _json_rows(raw, fmt, meta, warnings)
+        return _build(rows, meta, warnings, known_headers, opts, header_index=0, extra_bad=bad)
+    else:
+        rows = _parquet_rows(raw, meta)
+        return _build(rows, meta, warnings, known_headers, opts, header_index=0)
     return _build(rows, meta, warnings, known_headers, opts)
+
+
+def _check_memory(size: int, fmt: str, opts: IngestOptions, name: str) -> None:
+    try:
+        import psutil
+    except ImportError:                  # psutil missing: skip the check rather than block
+        return
+    need = size / 2**20 * MEMORY_FACTOR.get(fmt, 10)
+    free = psutil.virtual_memory().available / 2**20
+    if need > free - opts.safety_margin_mb:
+        raise IngestionError("insufficient_memory",
+                             f"{name} needs about {need:.0f} MB of RAM to read, but only {free:.0f} MB is free "
+                             f"(keeping {opts.safety_margin_mb:.0f} MB for the PC). Close other programs or split the file")
 
 
 def file_sha256(path: str | Path) -> str:
@@ -125,10 +153,16 @@ def _check_signature(raw: bytes, fmt: str, name: str) -> None:
             raise IngestionError("unsupported_format", f"{name} is an old .xls workbook; save it as .xlsx")
         if not head.startswith(ZIP_MAGIC):
             raise IngestionError("signature_mismatch", f"{name} is named .xlsx but is not an Excel file")
+    elif fmt == "parquet":
+        if not (raw.startswith(PARQUET_MAGIC) and raw.endswith(PARQUET_MAGIC)):
+            raise IngestionError("signature_mismatch", f"{name} is named .parquet but is not a Parquet file")
     else:
-        if head.startswith(ZIP_MAGIC) or head.startswith(OLE_MAGIC) or b"\x00" in raw[:4096]:
-            raise IngestionError("signature_mismatch", f"{name} is named .csv but contains binary data "
-                                                       "(maybe an Excel file with the wrong extension)")
+        if raw.startswith(UTF16_BOMS):
+            return                       # UTF-16 text (Excel "Unicode Text" export): zero bytes are normal
+        if head.startswith(ZIP_MAGIC) or head.startswith(OLE_MAGIC) or raw.startswith(PARQUET_MAGIC) \
+                or b"\x00" in raw[:4096]:
+            raise IngestionError("signature_mismatch", f"{name} contains binary data, not text "
+                                                       "(maybe an Excel/Parquet file with the wrong extension)")
 
 
 # ---------------------------------------------------------------- CSV
@@ -140,6 +174,11 @@ def _decode(raw: bytes, forced: str | None) -> tuple[str, str]:
             raise IngestionError("encoding_error", f"cannot decode with {forced}: {e}") from e
     if raw.startswith(b"\xef\xbb\xbf"):
         return raw.decode("utf-8-sig"), "utf-8-sig"
+    if raw.startswith(UTF16_BOMS):
+        try:
+            return raw.decode("utf-16"), "utf-16"
+        except UnicodeDecodeError as e:
+            raise IngestionError("encoding_error", f"looks like UTF-16 but cannot be decoded: {e}") from e
     for enc in ("utf-8", "cp1252"):
         try:
             return raw.decode(enc), enc
@@ -207,6 +246,7 @@ def _xlsx_rows(raw, opts, meta, warnings, known_headers) -> list[tuple[int, list
         raise IngestionError("corrupt_file", f"{meta.file_name} could not be opened: {e}") from e
     try:
         meta.sheet_names = list(wb.sheetnames)
+        hidden = {n for n in wb.sheetnames if getattr(wb[n], "sheet_state", "visible") != "visible"}
         sheets = {}
         for name in wb.sheetnames:
             rows = [(i, [_cell_text(v) for v in r])
@@ -221,11 +261,15 @@ def _xlsx_rows(raw, opts, meta, warnings, known_headers) -> list[tuple[int, list
         if opts.sheet not in sheets:
             raise IngestionError("sheet_not_found", f"sheet {opts.sheet!r} not in {meta.sheet_names}")
         chosen = opts.sheet
-    elif len(sheets) == 1:
-        chosen = meta.sheet_names[0]
     else:
-        chosen = max(sheets, key=lambda n: _sheet_score(sheets[n], known_headers, opts))
-        warnings.append(f"workbook has {len(sheets)} sheets {meta.sheet_names}; using {chosen!r}")
+        visible = [n for n in meta.sheet_names if n not in hidden] or meta.sheet_names
+        if hidden:
+            warnings.append(f"hidden sheet(s) ignored: {sorted(hidden)}")
+        if len(visible) == 1:
+            chosen = visible[0]
+        else:
+            chosen = max(visible, key=lambda n: _sheet_score(sheets[n], known_headers, opts))
+            warnings.append(f"workbook has {len(visible)} sheets {visible}; using {chosen!r}")
     meta.sheet_name = chosen
     if not any(any(c.strip() for c in r) for _, r in sheets[chosen]):
         raise IngestionError("empty_sheet", f"sheet {chosen!r} is empty")
@@ -238,6 +282,94 @@ def _sheet_score(rows, known_headers, opts) -> tuple:
     idx = _find_header(rows, known_headers, opts.header_search_rows)
     matches = _header_matches(rows[idx][1], known_headers) if idx is not None else 0
     return (matches, width * len(nonempty))
+
+
+# ---------------------------------------------------------------- JSON / JSON Lines
+def _json_rows(raw, fmt, meta, warnings):
+    """Records -> (rows, bad_rows). Nested objects are flattened to dotted columns; lists stay JSON text."""
+    import json
+
+    text, enc = _decode(raw, None)
+    meta.encoding = enc
+    if not text.strip():
+        raise IngestionError("empty_file", f"{meta.file_name} contains only blank space")
+    records, numbers, bad = None, None, []
+    if fmt == "json":
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError:
+            doc = None
+            warnings.append("not a single JSON document; read as JSON Lines (one object per line)")
+        if doc is not None:
+            if isinstance(doc, dict):
+                lists = [k for k, v in doc.items() if isinstance(v, list) and v and isinstance(v[0], dict)]
+                if len(lists) != 1:
+                    raise IngestionError("unsupported_json", "a JSON object must hold exactly one list of "
+                                                             f"records (found {len(lists)})")
+                warnings.append(f"records taken from the {lists[0]!r} key")
+                doc = doc[lists[0]]
+            if not isinstance(doc, list) or not all(isinstance(d, dict) for d in doc):
+                raise IngestionError("unsupported_json", "JSON must be a list of objects (records)")
+            records, numbers = doc, list(range(1, len(doc) + 1))
+    if records is None:                    # JSON Lines
+        records, numbers = [], []
+        for n, line in enumerate(text.splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                obj = None
+            if not isinstance(obj, dict):
+                bad.append({"source_row": n, "reason": "not a JSON object", "values": [line[:200]]})
+                continue
+            records.append(obj)
+            numbers.append(n)
+    if not records:
+        raise IngestionError("no_data_rows", f"{meta.file_name} has no records")
+
+    frame = pd.json_normalize(records, sep=".")
+    nested = [c for c in frame.columns if frame[c].map(lambda v: isinstance(v, (list, dict))).any()]
+    if nested:
+        warnings.append(f"column(s) {nested} hold lists; kept as JSON text (not flattened)")
+    dotted = [c for c in frame.columns if "." in c]
+    if dotted:
+        warnings.append(f"nested objects flattened into dotted columns, e.g. {dotted[:3]}")
+    if len({tuple(sorted(r)) for r in records}) > 1:
+        warnings.append("records do not all have the same keys; missing keys become blanks")
+    out = [(0, [str(c) for c in frame.columns])]
+    for n, rec in zip(numbers, frame.itertuples(index=False)):
+        out.append((n, [_json_text(v) for v in rec]))
+    return out, bad
+
+
+def _json_text(v) -> str:
+    import json
+    if isinstance(v, (list, dict)):
+        return json.dumps(v, ensure_ascii=False)
+    if v is None or (isinstance(v, float) and v != v):
+        return ""
+    if hasattr(v, "to_pydatetime"):
+        v = v.to_pydatetime()
+    if hasattr(v, "item") and not isinstance(v, (str, bytes)):
+        v = v.item()                       # numpy scalar -> Python
+    return _cell_text(v)
+
+
+# ---------------------------------------------------------------- Parquet
+def _parquet_rows(raw, meta) -> list[tuple[int, list[str]]]:
+    try:
+        import pyarrow.parquet as pq
+    except ImportError as e:
+        raise IngestionError("unsupported_format", "reading Parquet needs the 'pyarrow' package") from e
+    try:
+        frame = pq.read_table(io.BytesIO(raw)).to_pandas()
+    except Exception as e:  # noqa: BLE001 - any pyarrow failure means a damaged file
+        raise IngestionError("corrupt_file", f"{meta.file_name} could not be read as Parquet: {e}") from e
+    out = [(0, [str(c) for c in frame.columns])]
+    for n, rec in enumerate(frame.itertuples(index=False), start=1):
+        out.append((n, [_json_text(v) for v in rec]))
+    return out
 
 
 # ---------------------------------------------------------------- header + frame
@@ -279,11 +411,13 @@ def _find_header(rows, known_headers, search) -> int | None:
     return None
 
 
-def _build(rows, meta, warnings, known_headers, opts) -> IngestResult:
+def _build(rows, meta, warnings, known_headers, opts, header_index: int | None = None,
+           extra_bad: list[dict] | None = None) -> IngestResult:
     rows = [(n, r) for n, r in rows]
     if not any(any(c.strip() for c in r) for _, r in rows):
         raise IngestionError("empty_file", f"{meta.file_name} has no content")
-    idx = _find_header(rows, known_headers, opts.header_search_rows)
+    idx = header_index if header_index is not None else _find_header(rows, known_headers,
+                                                                        opts.header_search_rows)
     if idx is None:
         raise IngestionError("no_header_found",
                              f"no header row found in the first {opts.header_search_rows} rows")
@@ -311,7 +445,7 @@ def _build(rows, meta, warnings, known_headers, opts) -> IngestResult:
             seen[name] = 1
         columns.append(name)
 
-    data, bad, blank = [], [], 0
+    data, bad, blank = [], list(extra_bad or []), 0
     width = len(columns)
     for line, r in rows[idx + 1:]:
         if not any(c.strip() for c in r):
