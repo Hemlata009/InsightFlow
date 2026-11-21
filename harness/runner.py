@@ -130,6 +130,7 @@ def run_guarded(
 
 def _watch(popen, proc, m, r, start, timeout, max_task_mb):
     peak, min_free, outcome, note = 0, 10**9, None, ""
+    low_since = None
     while popen.poll() is None:
         used = _tree_rss_mb(proc)
         free = psutil.virtual_memory().available // 2**20
@@ -137,8 +138,14 @@ def _watch(popen, proc, m, r, start, timeout, max_task_mb):
         if used > max_task_mb:
             outcome, note = "killed_memory", f"task used {used} MB > limit {max_task_mb} MB"
         elif free < m["critical_available_mb"]:
-            outcome, note = "killed_memory", f"system free RAM {free} MB < {m['critical_available_mb']} MB"
-        elif timeout > 0 and time.monotonic() - start > timeout:
+            low_since = low_since or time.monotonic()
+            lasted = time.monotonic() - low_since
+            if lasted >= m.get("critical_grace_seconds", 0) and used >= m.get("critical_min_task_mb", 0):
+                outcome, note = "killed_memory", (f"system free RAM {free} MB < {m['critical_available_mb']} MB "
+                                                  f"for {lasted:.0f}s while the task used {used} MB")
+        else:
+            low_since = None
+        if outcome is None and timeout > 0 and time.monotonic() - start > timeout:
             outcome, note = "timeout", f"exceeded {timeout:.0f} s"
         if outcome:
             _kill_tree(proc)

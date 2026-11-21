@@ -5,7 +5,9 @@
 memory:
   warn_available_mb: 1000     # below this: run, but warn
   block_available_mb: 400     # below this: refuse to start (unless --force)
-  critical_available_mb: 250  # while running: kill the task if the system drops below this
+  critical_available_mb: 250  # while running: the system is in danger below this...
+  critical_grace_seconds: 5    # ...for this long without a break (short spikes are ignored)
+  critical_min_task_mb: 200    # ...and only a task this big is stopped for it (a small task isn't the cause)
   max_task_mb: 1500           # while running: kill the task if it uses more than this
 
 cpu:

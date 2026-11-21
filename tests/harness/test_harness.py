@@ -110,3 +110,21 @@ def test_zero_timeout_means_no_limit(tmp_path):
     cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
     res = run_guarded([sys.executable, "-c", "import time; time.sleep(1.2)"], cfg=cfg, timeout=0)
     assert res.outcome == "passed"
+
+
+def test_low_system_ram_spares_small_tasks(tmp_path):
+    # The system is "always low" here, but the task is tiny: it isn't the cause, so it keeps running.
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=10**9,
+               critical_grace_seconds=0, critical_min_task_mb=10**6)
+    res = run_guarded([sys.executable, "-c", "import time; time.sleep(1)"], cfg=cfg)
+    assert res.outcome == "passed"
+
+
+def test_low_system_ram_stops_big_task_after_grace(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=10**9,
+               critical_grace_seconds=1, critical_min_task_mb=20)
+    hog = "import time\nx = bytearray(40 * 2**20)\ntime.sleep(10)"
+    res = run_guarded([sys.executable, "-c", hog], cfg=cfg)
+    assert res.outcome == "killed_memory"
+    assert "while the task used" in res.note
+    assert res.duration_s < 8
