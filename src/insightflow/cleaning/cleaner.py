@@ -185,11 +185,16 @@ def _plain(v):
 
 
 def _derive(rows: pd.DataFrame, expression: str, digits: int | None) -> pd.Series:
-    frame = rows.astype({c: "float64" for c in rows.columns if str(rows[c].dtype) in ("Int64", "Float64")})
-    with np.errstate(divide="ignore", invalid="ignore"):
-        out = frame.eval(expression, engine="python")
-    out = pd.to_numeric(out, errors="coerce").replace([np.inf, -np.inf], np.nan)
-    return out.round(digits) if digits is not None else out
+    """Exact Decimal arithmetic per row, rounded half-up once at the end (see insightflow.money)."""
+    from insightflow.money import evaluate, quantize
+
+    out = []
+    for rec in rows.to_dict(orient="records"):
+        d = evaluate(expression, rec)
+        if d is not None and digits is not None:
+            d = quantize(d, digits)
+        out.append(float(d) if d is not None else np.nan)
+    return pd.Series(out, index=rows.index, dtype="float64")
 
 
 def _act(action, row, col, old, new, detail=""):

@@ -113,7 +113,8 @@ def _convert_foreign(res, cfg, rows):
         except NotConvertible as e:
             res.issues.append(_issue(rows[i], col, text, e.reason))
             continue
-        value = round(amount * rate, 4)
+        from insightflow.money import quantize, to_decimal
+        value = float(quantize(to_decimal(amount) * to_decimal(rate), 4))     # exact, half-up
         res.data.loc[i, col] = value
         c = _chg("currency_converted", rows[i], col, text, value)
         c["detail"] = f"{amount} {code} x {rate:.6f} = {value} {cfg.locale.currency_code} (ECB rate of {rate_day})"

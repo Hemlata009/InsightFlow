@@ -86,8 +86,14 @@ def add_reporting_columns(df, cfg):
     factor = days.dt.date.map(per_day).astype("Float64")
     out = df.copy()
     money = [c for c, s in cfg.columns.items() if s.money and c in df]
+    from insightflow.money import quantize, to_decimal
+
+    def convert(v, f):
+        a, r = to_decimal(v), to_decimal(f)
+        return float(quantize(a * r, 4)) if a is not None and r is not None else None
+
     for c in money:
-        out[f"{c}_{target}"] = (out[c].astype("Float64") * factor).round(4)
+        out[f"{c}_{target}"] = pd.array([convert(v, f) for v, f in zip(out[c], factor)], dtype="Float64")
     info = {"reporting_currency": target, "from": src, "columns": [f"{c}_{target}" for c in money],
             "rows_converted": int(factor.notna().sum()), "rows_without_rate": int(factor.isna().sum()),
             "dates_without_rate": failures, "rate_source": Rates.source}
