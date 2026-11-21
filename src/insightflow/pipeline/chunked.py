@@ -55,9 +55,11 @@ class ChunkedRun:
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / f"sample{self.path.suffix}"
             p.write_bytes(sample)
-            r = read_file(p, known_headers=known_headers, options=IngestOptions(check_memory=False))
+            r = read_file(p, known_headers=known_headers,
+                          options=IngestOptions(check_memory=False, header_rows=self.cfg.policies.header_rows))
         self.meta, self.header_row = r.metadata, r.metadata.header_row
         self.columns = [c for c in r.metadata.columns if c != OVERFLOW]   # the header itself, without extras
+        self.first_data_line = int(r.data[SOURCE_ROW].min()) if len(r.data) else self.header_row + 1
         self.overflow_rows = 0
         if self.fmt == "jsonl":
             self.columns = self._jsonl_keys()
@@ -99,7 +101,7 @@ class ChunkedRun:
             rows, bad, over = [], [], {}
             for record in reader:
                 line = reader.line_num
-                if line <= self.header_row or not any(c.strip() for c in record):
+                if line < self.first_data_line or not any(c.strip() for c in record):
                     continue
                 if len(record) > width and not any(c.strip() for c in record[width:]):
                     record = record[:width]

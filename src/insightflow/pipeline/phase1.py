@@ -69,7 +69,8 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
         return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt)
     try:
         raw = read_file(input_path, known_headers=set(cfg.header_map()),
-                        options=IngestOptions(max_file_mb=cfg.policies.max_file_mb))
+                        options=IngestOptions(max_file_mb=cfg.policies.max_file_mb,
+                                              header_rows=cfg.policies.header_rows))
     except IngestionError as e:
         if e.code in ("too_large", "insufficient_memory") and mode == "auto" and fmt in STREAMABLE:
             return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason=e.message)

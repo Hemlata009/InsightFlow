@@ -30,6 +30,7 @@ policies:
   invalid_value_action: quarantine  # bad values are set aside with a reason, never deleted
   max_quarantine_share: 0.20        # above this share of rows -> status needs_review
   max_file_mb: 50                   # above this (or if it won't fit in free RAM) -> chunked mode
+  header_rows: 1                    # 2 = a two-row header is joined: "Sales" over "Q1" -> "Sales Q1"
   large_files: auto                 # auto | always | never: read in pieces, dedupe on disk with DuckDB
   chunk_rows: 20000                 # rows per piece in chunked mode (tuned for this ~6 GB RAM PC)
   duckdb_memory_mb: 128             # DuckDB memory cap; it spills to disk beyond this

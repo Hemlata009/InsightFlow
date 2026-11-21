@@ -104,3 +104,30 @@ def test_simple_formulas_are_calculated_others_set_aside(tmp_path):
     assert r.metadata.rows == 2 and r.data.loc[0, "Sales"] == "180" and r.bad_rows[0]["source_row"] == 4
     assert any("calculated by InsightFlow" in w for w in r.warnings)
     assert "uncalculated formula" in r.bad_rows[0]["reason"] and any("never recalculated" in w for w in r.warnings)
+
+
+def test_two_row_header_from_the_rule_book(tmp_path):
+    """policies.header_rows: 2 joins the two header lines; works in normal AND chunked mode."""
+    import shutil
+
+    import pandas as pd
+    import yaml
+
+    from insightflow.config import CONFIG_DIR
+    from insightflow.pipeline import run_phase1
+    top = "Order,Order,Customer,Product,Category,Region,Quantity,Unit,Sales,Discount,Profit"
+    sub = "ID,Date,ID,,,,,Price,,,"
+    row = "IN-1,05/03/2025,C1,Pen Set,Office Supplies,North,2,100,180,0.1,20"
+    p = tmp_path / "two.csv"
+    p.write_text(top + "\n" + sub + "\n" + row + "\n" + row.replace("IN-1", "IN-2") + "\n", encoding="utf-8")
+    for mode in ["never", "always"]:
+        d = tmp_path / f"cfg_{mode}"
+        shutil.copytree(CONFIG_DIR, d)
+        f = d / "datasets" / "SALES_002.yaml"
+        data = yaml.safe_load(f.read_text(encoding="utf-8"))
+        data["policies"].update(header_rows=2, large_files=mode, chunk_rows=10)
+        f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+        res = run_phase1(p, "SALES_002", data_root=tmp_path / mode, config_dir=d)
+        assert res["status"] == "completed", (mode, res["warnings"], res.get("error"))
+        out = pd.read_csv(res["output_paths"]["cleaned"], encoding="utf-8-sig")
+        assert out["Unit_Price"].tolist() == [100, 100] and out["source_row"].tolist() == [3, 4], mode
