@@ -84,6 +84,8 @@ def _profile_column(s: pd.Series, raw: str, canonical: str | None, cfg, null_mar
         "patterns": {k: int(v) for k, v in counts.items()},
         "pattern_examples": {k: values[patterns == k].unique()[:N_EXAMPLES].tolist() for k in counts.index},
         "leading_trailing_spaces": int((values != values.str.strip()).sum()),
+        "formula_like": int(_formula_like(values).sum()),
+        "formula_like_examples": values[_formula_like(values)].unique()[:N_EXAMPLES].tolist(),
     }
     fams = patterns.map(FAMILY)
     col["dominant_family"] = fams.value_counts().idxmax() if len(fams) else "empty"
@@ -122,6 +124,13 @@ def _profile_column(s: pd.Series, raw: str, canonical: str | None, cfg, null_mar
     col["type_mismatch"] = int(bad.sum())
     col["type_mismatch_examples"] = values[bad].unique()[:N_EXAMPLES].tolist()
     return col
+
+
+def _formula_like(values: pd.Series) -> pd.Series:
+    """Text that Excel could run as a formula (=, +, -, @ at the start), but not plain numbers like -500."""
+    starts = values.str.match(r"^\s*[=+\-@]").fillna(False).astype(bool)
+    numeric = values.str.fullmatch(r"\s*[+\-]?[\d.,]+\s*%?").fillna(False).astype(bool)
+    return starts & ~numeric
 
 
 def _text_checks(values: pd.Series, spec) -> dict:
@@ -173,6 +182,9 @@ def _findings(report: dict) -> list[dict]:
         name = c["canonical"] or raw
         if c["missing"]:
             add("warning", name, f"{c['missing']} missing value(s) using markers {list(c['null_markers'])}")
+        if c.get("formula_like"):
+            add("warning", name, f"{c['formula_like']} cell(s) start with = + - @ and could run as formulas "
+                                  f"if opened in Excel (CSV injection), e.g. {c['formula_like_examples']}")
         if c.get("type_mismatch"):
             add("error", name, f"{c['type_mismatch']} value(s) don't look like {c['expected_type']}, "
                                 f"e.g. {c['type_mismatch_examples']}")

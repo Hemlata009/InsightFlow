@@ -33,3 +33,8 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | API is local only (127.0.0.1), one run at a time, uploads limited to .csv/.xlsx ≤ max_file_mb | [12](discussions/2026-11-21_12_react-explorer.md) |
 | 2026-11-21 | Never run the test suite while the explorer server is running (low RAM) | [12](discussions/2026-11-21_12_react-explorer.md) |
 | 2026-11-21 | Low-system-RAM kill needs 5 s of sustained shortage AND a task ≥ 200 MB; a task over its own 1.5 GB limit is still stopped at once | [12](discussions/2026-11-21_12_react-explorer.md) |
+| 2026-11-21 | New formats: JSON/JSONL (nested → dotted columns), Parquet, UTF-16 text; files that don't fit in free RAM are refused | [13](discussions/2026-11-21_13_edge-cases.md) |
+| 2026-11-21 | `$` means the dataset's own dollar; any other explicit currency is refused; two minus markers are refused | [13](discussions/2026-11-21_13_edge-cases.md) |
+| 2026-11-21 | Zoned times are converted to the dataset's business time zone (SALES_002: Asia/Kolkata); Unix/compact dates are opt-in | [13](discussions/2026-11-21_13_edge-cases.md) |
+| 2026-11-21 | fill_from_group and impute are available but OFF for sales until the user decides | [13](discussions/2026-11-21_13_edge-cases.md) |
+| 2026-11-21 | Outputs are UTF-8 with BOM (Excel-friendly); formula-like cells are reported, not altered | [13](discussions/2026-11-21_13_edge-cases.md) |

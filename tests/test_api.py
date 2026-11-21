@@ -58,7 +58,9 @@ def test_upload_run(client):
            "IN-1,05/03/2025,C1,Pen Set,Office Supplies,North,2,100,180,10%,20\n")
     r = client.post("/api/run", data={"dataset_id": "SALES_002"},
                     files={"file": ("my upload.csv", io.BytesIO(csv.encode()), "text/csv")}).json()
-    assert r["status"] == "completed" and r["rows_output"] == 1
+    assert r["rows_output"] == 1 and r["rows_quarantined"] == 0
+    # this file lacks 3 optional columns the previous run of SALES_002 had: reported as a schema change
+    assert r["schema_changes"]["removed"] == ["Segment", "State", "Sub_Category"]
 
 
 def test_upload_rejections(client):

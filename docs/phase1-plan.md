@@ -88,7 +88,15 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Original values and source row numbers are kept
 - [x] Log records which rule changed which value and why
 
-## Deferred (not in Phase 1 v1)
-JSON/JSONL/Parquet · nested JSON · currency conversion · timezones/DST · Unix timestamps ·
-large-file chunking · hook registry · Frictionless · dateparser · PyJanitor · moneyparse ·
-ydata-profiling · Great Expectations · DuckDB · Babel
+## Edge cases added later (2026-11-21, see discussion 13)
+- [x] JSON array / JSON Lines / nested JSON · Parquet · UTF-16 text · hidden sheets · memory guard
+- [x] European decimal comma (de_DE) · currency forms and clashes · Unicode/trailing minus · conflicting signs · precision limit
+- [x] 2-digit years · missing year/day · Excel serial with time · Unix timestamps (opt-in) · compact dates (opt-in)
+- [x] Time zones → business zone, daylight saving · zone abbreviations refused · date-like IDs stay text
+- [x] Fill from same group (never across groups) · guarded median/mean/mode imputation · zero vs unknown · booleans
+- [x] Schema drift between file versions · formula-injection cells reported · Excel-friendly output encoding
+
+## Still deferred
+Chunked processing of files larger than free RAM (refused for now) · currency conversion · uncalculated
+Excel formulas · merged cells / two-row headers · fixed-width / XML · hook registry ·
+tools: Frictionless · dateparser · PyJanitor · ydata-profiling · Great Expectations · DuckDB · Babel

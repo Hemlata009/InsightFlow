@@ -30,7 +30,8 @@ def _json(path: Path, obj) -> Path:
 def _csv(path: Path, df: pd.DataFrame) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    df.to_csv(tmp, index=False, encoding="utf-8", lineterminator="\n")
+    # utf-8-sig = UTF-8 with a BOM, so Excel shows ₹, é, ಕ correctly (plain UTF-8 shows "â‚¹")
+    df.to_csv(tmp, index=False, encoding="utf-8-sig", lineterminator="\n")
     tmp.replace(path)
     return path
 

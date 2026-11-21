@@ -38,6 +38,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
               "source_file": str(input_path), "source_format": input_path.suffix.lstrip(".").lower(),
               "rows_input": 0, "rows_output": 0, "rows_quarantined": 0, "rows_duplicates_removed": 0,
               "rows_flagged": 0, "transformations_applied": {}, "validation_errors": [], "warnings": [],
+              "schema_changes": {},
               "error": None, "output_paths": {}}
 
     cfg = load_dataset_config(dataset_id, config_dir)
@@ -59,6 +60,13 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
         warnings.append(f"this exact file was processed before (first seen {entry['first_seen']} "
                         f"as {entry['file_name']}); results are recomputed")
     raw_copy = preserve_raw(input_path, data_root / "raw", dataset_id, meta.sha256)
+    changes = _schema_changes(data_root / "processed" / dataset_id / "metadata.json", meta.columns, cfg)
+    if changes:
+        result["schema_changes"] = changes       # always recorded
+        structural = {k: v for k, v in changes.items() if k in ("added", "removed")}
+        if structural:                            # only real column changes count as a warning
+            warnings.append("columns changed since the last run: " +
+                            "; ".join(f"{k}: {v}" for k, v in structural.items()))
 
     before = profile(raw.data, cfg, meta)
     norm = normalize(raw.data, cfg)
@@ -137,6 +145,33 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
         quarantine=quarantine, duplicates=cleaned.duplicates, quality_report=quality,
         cleaning_log=log, metadata=metadata)
     return result
+
+
+def _schema_changes(prev_meta: Path, columns: list[str], cfg) -> dict:
+    """Compare this file's columns (by canonical name where known) with the previous run's file."""
+    if not prev_meta.exists():
+        return {}
+    try:
+        prev = json.loads(prev_meta.read_text(encoding="utf-8")).get("input") or {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+    before, now = prev.get("columns") or [], columns
+    if not before:
+        return {}
+    canon = lambda cols: {cfg.canonical_name(c) or c: c for c in cols}   # noqa: E731
+    b, n = canon(before), canon(now)
+    out = {}
+    added, removed = sorted(set(n) - set(b)), sorted(set(b) - set(n))
+    renamed = sorted(f"{b[k]!r} -> {n[k]!r}" for k in set(b) & set(n) if b[k] != n[k])
+    if added:
+        out["added"] = added
+    if removed:
+        out["removed"] = removed
+    if renamed:
+        out["header_spelling_changed"] = renamed
+    if list(b) != list(n) and not added and not removed:
+        out["order_changed"] = True
+    return out
 
 
 def _summary(failures) -> dict:

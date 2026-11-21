@@ -18,6 +18,7 @@
 - 2026-11-21: ✅ **Phase 1 complete** ([discussion 11](discussions/2026-11-21_11_phase1-steps5-9.md))
 
 - 2026-11-21: **React explorer**: Run pipeline / Edge-case lab / Rule book, local FastAPI, 266 tests passing ([discussion 12](discussions/2026-11-21_12_react-explorer.md))
+- 2026-11-21: **Edge cases**: 95 new tests in 5 groups; 6 bugs found and fixed; 363 tests passing ([discussion 13](discussions/2026-11-21_13_edge-cases.md))
 
 ## Current
 User explores Phase 1 in the **React explorer** (`python -m harness ui` → http://127.0.0.1:8000), then we review edge cases and requirements

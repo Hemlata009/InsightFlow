@@ -67,3 +67,14 @@ are matched to the allowed value, or to the most common spelling (`" north "` �
 Messy headers are matched after normalizing (lower-case; non-letters/digits → `_`):
 `" order_id"`, `"ORDER DATE"`, `"Qty"`, `"Sales Amount"`, `"Unit Price (INR)"`, `"Product Name"`,
 `"Sub-Category"` … all map to canonical names. The full lists are in `configs/domains/sales.yaml`.
+
+## Optional policies (added 2026-11-21, off unless set)
+| Setting | Where | Meaning |
+|---|---|---|
+| `policies.timezone` | dataset | Business time zone; times like `…Z` / `…+05:30` are converted to it before taking the date (SALES_002: Asia/Kolkata) |
+| `policies.unix_timestamps` | any layer | Read 10/13/16-digit numbers as Unix time (s/ms/µs) |
+| `policies.compact_dates` | any layer | Read `20250305` as a date |
+| `policies.two_digit_years` | any layer (on) | `05/03/26` → 2026 |
+| `missing_policy: fill_from_group` + `group_by` | column | Copy the value the other rows of the same group agree on (e.g. the same order) |
+| `missing_policy: impute` + `impute_method` | column | median / mean / mode; mean refused when \|skew\| > `max_skew_for_mean` |
+| locale `de_DE` | dataset | € EUR, `1.234,56`, DD.MM.YYYY, K/Tsd/Mio/Mrd |
