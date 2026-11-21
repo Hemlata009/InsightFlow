@@ -6,6 +6,9 @@ description: Generated Indian retail sales (2025-01 to 2026-06) with planted sto
 
 date_range: {min: "2025-01-01", max: "2026-06-30"}
 
+policies:
+  timezone: Asia/Kolkata            # Indian business: timestamps are converted to IST before taking the date
+
 columns:
   Region:
     allowed_values: [North, South, East, West, Central]

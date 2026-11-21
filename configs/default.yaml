@@ -12,7 +12,11 @@ policies:
     - "%Y-%m-%d"                    # ISO 2026-03-05
     - "%d-%b-%y"                    # 05-Mar-26
     - "%d-%b-%Y"                    # 05-Mar-2026
-  excel_serial_dates: true          # 45746 -> 2025-03-30 (only if inside date_range)
+  excel_serial_dates: true          # 45746 -> 2025-03-30 (only if inside date_range); 45746.5 = with time
+  two_digit_years: true             # 05/03/26 -> 2026 (00-68 -> 20xx, 69-99 -> 19xx); range check still applies
+  unix_timestamps: false            # 1741132800 / ...000 (ms) / ...000000 (µs); off: integers may be IDs
+  compact_dates: false              # 20250305; off: 8-digit numbers are often IDs
+  timezone: null                    # business time zone; required to read times like "...+05:30" or "...Z"
   percent_strings: true             # "10%" -> 0.10
   accounting_negatives: true        # "(1,000)" -> -1000
   magnitude_suffixes: true          # 15K, 2.5M, 1.2 L, 3 Cr (per locale)

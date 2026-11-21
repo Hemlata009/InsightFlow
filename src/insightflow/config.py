@@ -112,12 +112,27 @@ class Policies(Strict):
     ambiguous_dates: Literal["use_locale", "quarantine"] = "use_locale"
     extra_date_formats: list[str] = Field(default_factory=list)
     excel_serial_dates: bool = True
+    two_digit_years: bool = True          # 05/03/26 -> 2026 (Python pivot: 00-68 -> 20xx, 69-99 -> 19xx)
+    unix_timestamps: bool = False         # 1741132800 (s / ms / µs); off: an integer column may be an ID
+    compact_dates: bool = False           # 20250305; off: 8-digit numbers are often IDs
+    timezone: str | None = None           # business time zone, e.g. Asia/Kolkata; needed for "...+05:30"/"Z" times
     percent_strings: bool = True
     accounting_negatives: bool = True
     magnitude_suffixes: bool = True
     invalid_value_action: Literal["quarantine"] = "quarantine"
     max_quarantine_share: float = Field(0.2, ge=0, le=1)
     max_file_mb: float = Field(50, gt=0)
+
+
+    @model_validator(mode="after")
+    def _check_tz(self):
+        if self.timezone:
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            try:
+                ZoneInfo(self.timezone)
+            except (ZoneInfoNotFoundError, ValueError) as e:
+                raise ValueError(f"unknown timezone {self.timezone!r}") from e
+        return self
 
 
 class DuplicatePolicy(Strict):
