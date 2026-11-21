@@ -29,8 +29,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 0 | setup | venv, pyproject, folders, smoke test | ✅ done |
 | 1 | `data/sample` | SALES_001 (Superstore) + SALES_002 (India) with planted issues + answer keys | ✅ done |
 | 2 | `configs/` | Layered rule book + validated loader (`insightflow.config`) | ✅ done |
-| 3 | `ingestion` | Safe CSV/Excel reader + file metadata | ⏳ next |
-| 4 | `profiling` | Column-level quality report before changes | |
+| 3 | `ingestion` | Safe CSV/Excel reader + file metadata + repeat-upload registry | ✅ done |
+| 4 | `profiling` | Column-level quality report before changes | ⏳ next |
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | |
 | 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | |
 | 7 | `validation` | Pandera schema from config + business rules | |
@@ -40,15 +40,15 @@ Agreed 2026-11-21. Based on the full proposal in
 ## Edge-case test backlog (each becomes a pytest test)
 
 ### Step 3: Ingestion
-- [ ] Wrong extension / file signature mismatch
-- [ ] Corrupt file; password-protected Excel → fail with a clear message
-- [ ] Empty file / empty worksheet
-- [ ] Multiple Excel sheets (select by config)
-- [ ] Header not in the first row
-- [ ] Duplicate or blank column names
-- [ ] CSV encoding (UTF-8, UTF-8-BOM, cp1252)
-- [ ] Comma / semicolon / tab delimiters
-- [ ] Same file uploaded again (hash match)
+- [x] Wrong extension / file signature mismatch
+- [x] Corrupt file; password-protected Excel → fail with a clear message
+- [x] Empty file / empty worksheet
+- [x] Multiple Excel sheets (select by config)
+- [x] Header not in the first row
+- [x] Duplicate or blank column names
+- [x] CSV encoding (UTF-8, UTF-8-BOM, cp1252)
+- [x] Comma / semicolon / tab delimiters
+- [x] Same file uploaded again (hash match)
 
 ### Step 5: Normalization
 - [ ] Column names: whitespace, casing, map to canonical names

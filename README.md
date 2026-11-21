@@ -22,7 +22,7 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 
 ## Status
 
-Phase 1: setup, local harness and Milestone 1 (sample datasets) and Step 2 (rule book) done. Next: Step 3, ingestion.
+Phase 1: setup, local harness and Milestone 1 (sample datasets) , Step 2 (rule book) and Step 3 (ingestion) done. Next: Step 4, profiling.
 
 > Run every dev task through the harness. See [CLAUDE.md](CLAUDE.md) and [docs/harness.md](docs/harness.md).
 

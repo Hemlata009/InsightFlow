@@ -20,3 +20,6 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | 15 planted issue types (~7% of rows) with an answer key; stories: festive boost, March 2026 North Electronics drop | [07](discussions/2026-11-21_07_dataset-design.md) |
 | 2026-11-21 | Rule book = 3 config layers (default → domain → dataset) + locales, validated by Pydantic; typos are errors | [08](discussions/2026-11-21_08_rule-book.md) |
 | 2026-11-21 | Sales rules: row = order line; key = Order_ID + Product; discount = fraction ≤ 0.8; returns only if allowed; no currency conversion | [08](discussions/2026-11-21_08_rule-book.md) |
+| 2026-11-21 | Reader returns every cell as text + `_source_row`; it never interprets values, renames headers or modifies files | [09](discussions/2026-11-21_09_ingestion.md) |
+| 2026-11-21 | Unreadable files fail with stable error codes; rows with the wrong field count are set aside in `bad_rows`, never dropped | [09](discussions/2026-11-21_09_ingestion.md) |
+| 2026-11-21 | Max input file 50 MB by default (low-RAM PC); chunked reading deferred | [09](discussions/2026-11-21_09_ingestion.md) |
