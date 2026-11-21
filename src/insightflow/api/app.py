@@ -26,7 +26,7 @@ from insightflow.pipeline.phase1 import DATA_ROOT, ROOT, run_phase1
 from insightflow.profiling import profile
 
 WEB_DIST = ROOT / "web" / "dist"
-ALLOWED_SUFFIXES = {".csv", ".tsv", ".txt", ".xlsx", ".json", ".jsonl", ".ndjson", ".parquet"}
+ALLOWED_SUFFIXES = {".csv", ".tsv", ".txt", ".xlsx", ".json", ".jsonl", ".ndjson", ".parquet", ".xml", ".fwf", ".prn"}
 TABLES = {"cleaned": ("processed", None), "quarantine": ("quarantine", "quarantined_rows.csv"),
           "duplicates": ("quarantine", "duplicates_removed.csv")}
 _ID = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")

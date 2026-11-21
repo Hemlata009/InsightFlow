@@ -177,7 +177,7 @@ def test_header_only(tmp_path):
 
 def test_not_found_and_unsupported(tmp_path):
     assert code_of(lambda: read_file(tmp_path / "missing.csv")) == "not_found"
-    assert code_of(lambda: read_file(write(tmp_path / "x.xml", "<a/>"))) == "unsupported_format"
+    assert code_of(lambda: read_file(write(tmp_path / "x.docx", "not a table"))) == "unsupported_format"
 
 
 def test_excel_renamed_to_csv(tmp_path):

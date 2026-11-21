@@ -22,12 +22,14 @@ from pathlib import Path
 import pandas as pd
 
 SOURCE_ROW = "_source_row"
+UNCALCULATED = "#UNCALCULATED_FORMULA"
 SUPPORTED = {".csv": "csv", ".tsv": "csv", ".txt": "csv", ".xlsx": "xlsx", ".json": "json",
-             ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet"}
+             ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".xml": "xml",
+             ".fwf": "fwf", ".prn": "fwf"}
 PARQUET_MAGIC = b"PAR1"
 UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
 # Rough RAM needed per MB of file (text in pandas is ~10x its size on disk; xlsx is zipped)
-MEMORY_FACTOR = {"csv": 10, "json": 12, "jsonl": 12, "xlsx": 40, "parquet": 15}
+MEMORY_FACTOR = {"csv": 10, "json": 12, "jsonl": 12, "xlsx": 40, "parquet": 15, "xml": 15, "fwf": 10}
 ZIP_MAGIC = b"PK\x03\x04"
 OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"          # old .xls and password-protected .xlsx
 ENCRYPTED_MARK = "EncryptedPackage".encode("utf-16-le")
@@ -52,6 +54,8 @@ class IngestOptions:
     delimiter: str | None = None     # CSV: force a delimiter; otherwise detected
     check_memory: bool = True        # refuse files that would not fit in the free RAM
     safety_margin_mb: float = 300    # keep this much RAM free for the rest of the PC
+    min_checked_mb: float = 20       # files needing less RAM than this are never refused
+    header_rows: int = 1             # 2 = a two-row header ("Revenue" over "Q1 | Q2" -> "Revenue Q1", ...)
 
 
 @dataclass
@@ -116,6 +120,11 @@ def read_file(path: str | Path, *, known_headers: set[str] | None = None,
     elif fmt in ("json", "jsonl"):
         rows, bad = _json_rows(raw, fmt, meta, warnings)
         return _build(rows, meta, warnings, known_headers, opts, header_index=0, extra_bad=bad)
+    elif fmt == "xml":
+        rows = _xml_rows(raw, meta, warnings)
+        return _build(rows, meta, warnings, known_headers, opts, header_index=0)
+    elif fmt == "fwf":
+        rows = _fwf_rows(raw, opts, meta, warnings)
     else:
         rows = _parquet_rows(raw, meta)
         return _build(rows, meta, warnings, known_headers, opts, header_index=0)
@@ -128,6 +137,8 @@ def _check_memory(size: int, fmt: str, opts: IngestOptions, name: str) -> None:
     except ImportError:                  # psutil missing: skip the check rather than block
         return
     need = size / 2**20 * MEMORY_FACTOR.get(fmt, 10)
+    if need < opts.min_checked_mb:       # tiny files can't hurt; don't refuse them when the PC is busy
+        return
     free = psutil.virtual_memory().available / 2**20
     if need > free - opts.safety_margin_mb:
         raise IngestionError("insufficient_memory",
@@ -190,7 +201,7 @@ def _decode(raw: bytes, forced: str | None) -> tuple[str, str]:
 def _detect_delimiter(text: str) -> str:
     """Pick the delimiter that splits the first lines into the most consistent number (>1) of fields."""
     sample = "\n".join(text.splitlines()[:50])
-    best, best_score = ",", (-1, 0)
+    best, best_score = None, (-1, 0)
     for d in DELIMITERS:
         counts = [len(r) for r in csv.reader(io.StringIO(sample), delimiter=d) if any(c.strip() for c in r)]
         if not counts:
@@ -212,6 +223,10 @@ def _csv_rows(raw, opts, meta, warnings) -> list[tuple[int, list[str]]]:
     if not text.strip():
         raise IngestionError("empty_file", f"{meta.file_name} contains only blank space")
     meta.delimiter = opts.delimiter or _detect_delimiter(text)
+    if meta.delimiter is None:                        # nothing splits the lines: maybe fixed-width text
+        warnings.append("no column separator found; read as fixed-width columns")
+        meta.format = "fwf"
+        return _fwf_text_rows(text, meta)
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=meta.delimiter)
     rows = []
     try:
@@ -273,7 +288,79 @@ def _xlsx_rows(raw, opts, meta, warnings, known_headers) -> list[tuple[int, list
     meta.sheet_name = chosen
     if not any(any(c.strip() for c in r) for _, r in sheets[chosen]):
         raise IngestionError("empty_sheet", f"sheet {chosen!r} is empty")
-    return sheets[chosen]
+    rows = sheets[chosen]
+    sheet_xml = _sheet_xml(raw, meta.sheet_names.index(chosen))
+    if b"<mergeCell " in sheet_xml:
+        rows = _fill_merged(raw, chosen, rows, warnings)
+    if b"<f" in sheet_xml:
+        rows = _mark_uncalculated(raw, chosen, rows, warnings)
+    return rows
+
+
+def _sheet_xml(raw: bytes, index: int) -> bytes:
+    """Raw XML of the n-th worksheet (cheap check for merged cells / formulas without loading everything)."""
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        import re as _re
+        rels = z.read("xl/_rels/workbook.xml.rels").decode("utf-8", "replace")
+        wbx = z.read("xl/workbook.xml").decode("utf-8", "replace")
+        rids = _re.findall(r'<sheet\b[^>]*?r:id="([^"]+)"', wbx)
+        if index >= len(rids):
+            return b""
+        m = _re.search(r'<Relationship\b[^>]*Id="%s"[^>]*Target="([^"]+)"' % _re.escape(rids[index]), rels) or \
+            _re.search(r'<Relationship\b[^>]*Target="([^"]+)"[^>]*Id="%s"' % _re.escape(rids[index]), rels)
+        if not m:
+            return b""
+        target = m.group(1).lstrip("/")
+        target = target if target.startswith("xl/") else f"xl/{target}"
+        return z.read(target) if target in z.namelist() else b""
+
+
+def _fill_merged(raw, sheet, rows, warnings):
+    """Copy the top-left value of every merged block into all its cells (openpyxl's merged ranges)."""
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=False, data_only=True)
+    try:
+        ranges = list(wb[sheet].merged_cells.ranges)
+    finally:
+        wb.close()
+    grid = {n: list(r) for n, r in rows}
+    for rng in ranges:
+        top = grid.get(rng.min_row, [])
+        value = top[rng.min_col - 1] if len(top) >= rng.min_col else ""
+        for r in range(rng.min_row, rng.max_row + 1):
+            cells = grid.setdefault(r, [])
+            if len(cells) < rng.max_col:
+                cells.extend([""] * (rng.max_col - len(cells)))
+            for c in range(rng.min_col, rng.max_col + 1):
+                cells[c - 1] = value
+    warnings.append(f"{len(ranges)} merged cell block(s) filled with their top-left value")
+    return [(n, grid[n]) for n, _ in rows]
+
+
+def _mark_uncalculated(raw, sheet, rows, warnings):
+    """A formula saved without its result (files written by tools, not Excel) reads as blank. Mark it."""
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=False)
+    try:
+        formulas = {i: [v if isinstance(v, str) and v.startswith("=") else None for v in r]
+                    for i, r in enumerate(wb[sheet].iter_rows(values_only=True), start=1)}
+    finally:
+        wb.close()
+    count, out = 0, []
+    for n, cells in rows:
+        f = formulas.get(n, [])
+        new = list(cells)
+        for j, v in enumerate(new):
+            if j < len(f) and f[j] and not v.strip():
+                new[j] = UNCALCULATED
+                count += 1
+        out.append((n, new))
+    if count:
+        warnings.append(f"{count} formula cell(s) have no saved result (the file was never recalculated); "
+                        "those rows are set aside. Open and save the file in Excel or LibreOffice to fix")
+    return out
 
 
 def _sheet_score(rows, known_headers, opts) -> tuple:
@@ -372,6 +459,55 @@ def _parquet_rows(raw, meta) -> list[tuple[int, list[str]]]:
     return out
 
 
+# ---------------------------------------------------------------- XML (defusedxml: safe against XML bombs)
+def _xml_rows(raw, meta, warnings):
+    try:
+        from defusedxml import ElementTree as SafeET
+        from defusedxml.common import DefusedXmlException
+    except ImportError as e:
+        raise IngestionError("unsupported_format", "reading XML needs the 'defusedxml' package") from e
+    try:
+        root = SafeET.fromstring(raw)
+    except DefusedXmlException as e:
+        raise IngestionError("unsafe_xml", f"{meta.file_name} uses XML features that can be abused: {e}") from e
+    except Exception as e:  # noqa: BLE001 - any parse error = damaged file
+        raise IngestionError("corrupt_file", f"{meta.file_name} is not valid XML: {e}") from e
+    records = []
+    for el in list(root):
+        rec = {f"@{k}": v for k, v in el.attrib.items()}
+        for child in list(el):
+            tag = child.tag.split("}")[-1]
+            if len(child):                               # nested element: keep as JSON text
+                rec[tag] = {g.tag.split("}")[-1]: (g.text or "").strip() for g in child}
+            else:
+                rec[tag] = (child.text or "").strip()
+        records.append(rec)
+    if not records:
+        raise IngestionError("no_data_rows", f"{meta.file_name} has no records under the root element")
+    meta.encoding = "xml-declared"
+    import json
+    rows, _bad = _json_rows(json.dumps(records).encode("utf-8"), "json", meta, warnings)
+    meta.encoding = "xml-declared"
+    return rows
+
+
+# ---------------------------------------------------------------- fixed-width text (pandas.read_fwf)
+def _fwf_rows(raw, opts, meta, warnings):
+    text, enc = _decode(raw, opts.encoding)
+    meta.encoding = enc
+    return _fwf_text_rows(text, meta)
+
+
+def _fwf_text_rows(text, meta):
+    lines = [(n, line) for n, line in enumerate(text.splitlines(), start=1) if line.strip()]
+    if not lines:
+        raise IngestionError("empty_file", f"{meta.file_name} has no content")
+    frame = pd.read_fwf(io.StringIO("\n".join(line for _, line in lines)), colspecs="infer", header=None,
+                        dtype=str, keep_default_na=False, infer_nrows=min(len(lines), 500))
+    meta.delimiter = "fixed-width"
+    return [(n, [str(v).strip() for v in rec]) for (n, _), rec in zip(lines, frame.itertuples(index=False))]
+
+
 # ---------------------------------------------------------------- header + frame
 def _norm(text: str) -> str:
     from insightflow.config import normalize_header
@@ -422,6 +558,13 @@ def _build(rows, meta, warnings, known_headers, opts, header_index: int | None =
         raise IngestionError("no_header_found",
                              f"no header row found in the first {opts.header_search_rows} rows")
     header_line, header = rows[idx]
+    if opts.header_rows > 1:
+        extra = rows[idx + 1: idx + opts.header_rows]
+        width = max(len(header), *(len(r) for _, r in extra))
+        parts = [list(header) + [""] * (width - len(header))] + [list(r) + [""] * (width - len(r)) for _, r in extra]
+        header = [" ".join(dict.fromkeys(p[j].strip() for p in parts if p[j].strip())) for j in range(width)]
+        rows = rows[:idx + 1] + rows[idx + opts.header_rows:]
+        warnings.append(f"{opts.header_rows}-row header combined, e.g. {[h for h in header if ' ' in h][:3]}")
     meta.header_row = header_line
     if idx > 0:
         warnings.append(f"header found on row {header_line}; {idx} row(s) above it skipped")
@@ -457,6 +600,10 @@ def _build(rows, meta, warnings, known_headers, opts, header_index: int | None =
             r = r + [""] * (width - len(r))           # Excel omits trailing empty cells
         if len(r) != width:
             bad.append({"source_row": line, "reason": f"{len(r)} fields, expected {width}", "values": r})
+            continue
+        if UNCALCULATED in r:
+            cols = [columns[j] for j, v in enumerate(r) if v == UNCALCULATED]
+            bad.append({"source_row": line, "reason": f"uncalculated formula in {cols}", "values": r})
             continue
         data.append([line, *r])
     if blank:

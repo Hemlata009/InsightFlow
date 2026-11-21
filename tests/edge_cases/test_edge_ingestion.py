@@ -149,5 +149,6 @@ def test_file_too_big_for_free_ram_is_refused(tmp_path, monkeypatch):
     monkeypatch.setattr(psutil, "virtual_memory", lambda: Fake)
     p = tmp_path / "big.csv"
     p.write_text("a,b\n" + "1,2\n" * 2000)
-    assert code_of(lambda: read_file(p)) == "insufficient_memory"
-    assert read_file(p, options=IngestOptions(check_memory=False)).metadata.rows == 2000
+    assert read_file(p).metadata.rows == 2000                   # tiny file: never refused, even when RAM is low
+    assert code_of(lambda: read_file(p, options=IngestOptions(min_checked_mb=0))) == "insufficient_memory"
+    assert read_file(p, options=IngestOptions(check_memory=False, min_checked_mb=0)).metadata.rows == 2000
