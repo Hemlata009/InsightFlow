@@ -122,6 +122,10 @@ def cmd_history(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The Windows console can't print every character (→, ₹ ...): replace them instead of crashing.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     p = argparse.ArgumentParser(prog="python -m harness", description="InsightFlow local harness")
     sub = p.add_subparsers(dest="command", required=True)
 

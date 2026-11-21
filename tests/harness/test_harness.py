@@ -128,3 +128,11 @@ def test_low_system_ram_stops_big_task_after_grace(tmp_path):
     assert res.outcome == "killed_memory"
     assert "while the task used" in res.note
     assert res.duration_s < 8
+
+
+def test_status_survives_characters_the_console_cannot_print():
+    import subprocess
+    out = subprocess.run([sys.executable, "-m", "harness", "status"], capture_output=True,
+                         env={**__import__("os").environ, "PYTHONIOENCODING": "cp1252"})
+    assert out.returncode in (0, 2), out.stderr.decode("cp1252", "replace")[-300:]
+    assert b"InsightFlow development status" in out.stdout

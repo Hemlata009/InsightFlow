@@ -23,7 +23,7 @@
 - 2026-11-21: **Pushed to GitHub** (private, Actions disabled): https://github.com/Hemlata009/InsightFlow
 
 ## Current
-User explores Phase 1 in the **React explorer** (`python -m harness ui` → http://127.0.0.1:8000), then we review edge cases and requirements
+Waiting for the user's decisions on open business rules and Phase 2 KPIs ([discussion 16](discussions/2026-11-21_16_where-stuck.md))
 
 ## Next
 Phase 2: automated analytics, EDA and KPI engine (after the review)
