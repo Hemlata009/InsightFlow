@@ -1,7 +1,7 @@
 # Local Development Harness
 
 The harness is the single entry point for every local development task: tests, scripts, and later the
-pipeline, the MCP server and Streamlit. It protects this low-memory PC from hangs and records every run.
+pipeline, the React web UI and (later) the MCP server. It protects this low-memory PC from hangs and records every run.
 
 ## Machine profile (measured 2026-11-21)
 | Resource | Value |
@@ -15,7 +15,7 @@ pipeline, the MCP server and Streamlit. It protects this low-memory PC from hang
 | Command | What it does |
 |---|---|
 | `python -m harness check` | Free RAM/CPU/disk → `[OK]`, `[WARN]` or `[STOP]`, plus the biggest memory users |
-| `python -m harness test [pytest args]` | Runs pytest under the guard |
+| `python -m harness test [pytest args]` | Runs pytest under the guard. Without test paths: the groups in `harness/config.yaml` run one after another in fresh processes (lower peak RAM) |
 | `python -m harness run -- <cmd>` | Runs any command under the guard |
 | `python -m harness status` | Branch, last commit, uncommitted files, current step, last run, resources |
 | `python -m harness history [-n 20]` | Recent runs from the SQLite history |

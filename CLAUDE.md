@@ -20,6 +20,8 @@ Rules:
   Use `--force` only if the user agrees.
 - One heavy task at a time. No parallel test runs (`pytest -n`), no parallel agents doing heavy work.
 - Never run tests while `harness ui` is running (stop it first); together they hit the memory limit.
+- A full `harness test` runs 3 groups in fresh processes (see `harness/config.yaml`); keep it that way.
+- Phase 1 is frozen: `tests/test_baseline.py` must pass. Re-record (`python -m scripts.make_baseline`) only for a deliberate change, explained in the commit.
 - Data work: read large files in chunks; use small sample data in tests.
 - Limits live in `harness/config.yaml`. Change them there, never in code.
 - Docker / PostgreSQL are **deferred** (see `docs/harness.md`). Use SQLite for local storage until Phase 9.

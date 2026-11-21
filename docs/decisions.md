@@ -43,3 +43,8 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | pycel rejected (GPL-3.0); uncalculated formulas are detected and set aside instead | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
 | 2026-11-21 | Add-on steps via pluggy; plugins may change values but never add/drop rows | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
 | 2026-11-21 | Pushed to private GitHub repo Hemlata009/InsightFlow; GitHub Actions disabled; push only when asked | [15](discussions/2026-11-21_15_github-push.md) |
+| 2026-11-21 | New column type `datetime` keeps the time (tz-converted); `date` keeps only the day | [17](discussions/2026-11-21_17_review-priorities.md) |
+| 2026-11-21 | Money maths in exact Decimal, rounded once, half-up; floats only for storage (lossless ≤15 digits) | [17](discussions/2026-11-21_17_review-priorities.md) |
+| 2026-11-21 | Standard audit-log entry (seq, run_id, kind, stage, rule, source_row, column, old, new, severity, detail); plugin changes per cell; plugin file SHA-256 in metadata | [17](discussions/2026-11-21_17_review-priorities.md) |
+| 2026-11-21 | Phase 1 frozen: baseline of results + output SHA-256 must be reproduced; tag phase1-v1.0 | [17](discussions/2026-11-21_17_review-priorities.md) |
+| 2026-11-21 | Full test runs are split into 3 fresh-process groups (the PC fell to 15 MB free during one combined run) | [17](discussions/2026-11-21_17_review-priorities.md) |

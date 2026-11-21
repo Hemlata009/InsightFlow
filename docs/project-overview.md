@@ -73,7 +73,7 @@ answer through a chat assistant, a dashboard or an email, without needing a data
 6. Machine learning (forecasting, anomaly detection, evaluation)
 7. LLM engineering (prompting, grounding, tool calling)
 8. Software engineering (structure, config, testing, Git)
-9. Integration (MCP, Streamlit, email, databases, scheduling)
+9. Integration (MCP, React + FastAPI, email, databases, scheduling)
 
 ## Phase 1 milestones
 
