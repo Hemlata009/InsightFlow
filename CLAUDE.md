@@ -10,6 +10,7 @@ commands directly. This machine has only ~6 GB RAM and is often under 1 GB free.
 .\.venv\Scripts\python -m harness run -- <cmd>     # run any script under the guard
 .\.venv\Scripts\python -m harness status           # git + current step + last run + resources
 .\.venv\Scripts\python -m harness history          # recent runs (SQLite: .local/harness.db)
+.\.venv\Scripts\python -m harness run -- python -m insightflow.pipeline <file> <DATASET_ID>   # Phase 1 pipeline
 ```
 
 Rules:
