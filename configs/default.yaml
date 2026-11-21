@@ -22,7 +22,11 @@ policies:
   magnitude_suffixes: true          # 15K, 2.5M, 1.2 L, 3 Cr (per locale)
   invalid_value_action: quarantine  # bad values are set aside with a reason, never deleted
   max_quarantine_share: 0.20        # above this share of rows -> status needs_review
-  max_file_mb: 50                   # larger input files are refused (low-RAM PC; chunking comes later)
+  max_file_mb: 50                   # above this (or if it won't fit in free RAM) -> chunked mode
+  large_files: auto                 # auto | always | never: read in pieces, dedupe on disk with DuckDB
+  chunk_rows: 20000                 # rows per piece in chunked mode (tuned for this ~6 GB RAM PC)
+  duckdb_memory_mb: 128             # DuckDB memory cap; it spills to disk beyond this
+  max_chunked_file_mb: 5000         # even chunked mode refuses files larger than this
 
 duplicates:
   exact: drop                       # identical rows (after normalization): keep the first, log the rest

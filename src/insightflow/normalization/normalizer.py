@@ -36,7 +36,10 @@ class NormalizeResult:
     pending_conversions: list[tuple] = field(default_factory=list)   # (index, column, amount, code, text)
 
 
-def normalize(raw: pd.DataFrame, cfg: DatasetConfig) -> NormalizeResult:
+def normalize(raw: pd.DataFrame, cfg: DatasetConfig, *,
+              spellings: dict[str, dict[str, str]] | None = None) -> NormalizeResult:
+    """`spellings`: column -> {lower-case key: reference spelling} computed over a WHOLE file
+    (chunked mode); without it the most common spelling is taken from this table itself."""
     res = NormalizeResult(data=pd.DataFrame(index=raw.index))
     res.data[SOURCE_ROW] = raw[SOURCE_ROW] if SOURCE_ROW in raw else range(1, len(raw) + 1)
     rows = res.data[SOURCE_ROW]
@@ -76,7 +79,7 @@ def normalize(raw: pd.DataFrame, cfg: DatasetConfig) -> NormalizeResult:
             continue
         spec = cfg.columns[canon]
         if spec.type == "string":
-            res.data[canon] = _strings(text, spec, cfg, rows, canon, res)
+            res.data[canon] = _strings(text, spec, cfg, rows, canon, res, (spellings or {}).get(canon))
         elif spec.type in ("integer", "float"):
             res.data[canon] = _numbers(text, spec, cfg, rows, canon, res)
         elif spec.type == "date":
@@ -134,16 +137,23 @@ def _jsonable(v):
     return v.item() if hasattr(v, "item") else v
 
 
-def _strings(text, spec, cfg, rows, col, res) -> pd.Series:
+def tidy_text(text: pd.Series, cfg) -> pd.Series:
     out = text
     if cfg.policies.strip_whitespace:
         out = out.str.strip()
     if cfg.policies.collapse_inner_spaces:
         out = out.str.replace(r"\s+", " ", regex=True)
+    return out
+
+
+def _strings(text, spec, cfg, rows, col, res, known: dict | None = None) -> pd.Series:
+    out = tidy_text(text, cfg)          # same function the chunked first pass uses
     if spec.normalize_case and cfg.policies.categorical_case == "match_known":
         key = out.str.lower()
         if spec.allowed_values:
             reference = pd.Series({a.lower(): a for a in spec.allowed_values})
+        elif known is not None:  # whole-file reference spellings (chunked mode)
+            reference = pd.Series(known, dtype="string")
         else:   # the most frequent spelling within each group is the reference
             pairs = pd.DataFrame({"k": key, "v": out}).dropna().value_counts().reset_index(name="n")
             reference = (pairs.sort_values(["n", "v"], ascending=[False, True], kind="stable")

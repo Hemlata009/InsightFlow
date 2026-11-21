@@ -30,7 +30,8 @@ class CleanResult:
     flags: list[dict] = field(default_factory=list)     # kept, but needs a human look
 
 
-def clean(norm: NormalizeResult, cfg: DatasetConfig) -> CleanResult:
+def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True) -> CleanResult:
+    """dedupe=False: skip steps (3)-(4); chunked mode does them across all chunks in DuckDB."""
     df = norm.data.copy()
     reasons: dict[int, list[str]] = {}
 
@@ -84,6 +85,10 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig) -> CleanResult:
     q = df.loc[bad, [SOURCE_ROW]].copy()
     q[REASONS] = q[SOURCE_ROW].map(lambda r: "; ".join(reasons[int(r)]))
     kept = df.loc[~bad]
+
+    if not dedupe:
+        empty = pd.DataFrame({SOURCE_ROW: pd.Series(dtype="int64"), "duplicate_of": pd.Series(dtype="int64")})
+        return CleanResult(kept.reset_index(drop=True), q.reset_index(drop=True), empty, actions, flags)
 
     # (3) exact duplicates (after normalization, so hidden duplicates are caught too)
     value_cols = [c for c in kept.columns if c != SOURCE_ROW]

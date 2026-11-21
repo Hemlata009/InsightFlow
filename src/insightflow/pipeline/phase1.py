@@ -22,7 +22,10 @@ from insightflow.audit import preserve_raw, write_run
 from insightflow.cleaning import REASONS, clean
 from insightflow.config import CONFIG_DIR, load_dataset_config
 from insightflow.hooks import PluginError, load_plugins, run_checks, run_transform
-from insightflow.ingestion import SOURCE_ROW, FileRegistry, IngestionError, IngestOptions, read_file
+from insightflow.ingestion import (SOURCE_ROW, FileMetadata, FileRegistry, IngestionError, IngestOptions,
+                                   file_sha256, read_file)
+from insightflow.ingestion.reader import SUPPORTED
+from insightflow.pipeline.chunked import STREAMABLE, run_chunked
 from insightflow.normalization import normalize
 from insightflow.profiling import profile
 
@@ -39,7 +42,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
               "source_file": str(input_path), "source_format": input_path.suffix.lstrip(".").lower(),
               "rows_input": 0, "rows_output": 0, "rows_quarantined": 0, "rows_duplicates_removed": 0,
               "rows_flagged": 0, "transformations_applied": {}, "validation_errors": [], "warnings": [],
-              "schema_changes": {}, "plugins": [],
+              "schema_changes": {}, "plugins": [], "processing_mode": None,
               "error": None, "output_paths": {}}
 
     cfg = load_dataset_config(dataset_id, config_dir)
@@ -54,12 +57,19 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
 def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) -> dict:
     pm = load_plugins(cfg.plugins) if cfg.plugins else None
     plugin_log: list[dict] = []
+    mode = cfg.policies.large_files
+    fmt = SUPPORTED.get(input_path.suffix.lower())
+    if mode == "always" and fmt in STREAMABLE:
+        return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt)
     try:
         raw = read_file(input_path, known_headers=set(cfg.header_map()),
                         options=IngestOptions(max_file_mb=cfg.policies.max_file_mb))
     except IngestionError as e:
+        if e.code in ("too_large", "insufficient_memory") and mode == "auto" and fmt in STREAMABLE:
+            return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason=e.message)
         result["error"] = {"code": e.code, "message": e.message}
         return _finish_failed(result, data_root, started)
+    result["processing_mode"] = "in_memory"
 
     meta = raw.metadata
     warnings = list(raw.warnings)
@@ -174,6 +184,51 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
         quarantine=quarantine, duplicates=cleaned.duplicates, quality_report=quality,
         cleaning_log=log, metadata=metadata)
     return result
+
+
+def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason: str = "") -> dict:
+    """Large files: stream in pieces; see pipeline/chunked.py."""
+    warnings = [f"switched to chunked mode: {reason}"] if reason else []
+    if cfg.plugins:
+        warnings.append(f"plugins {cfg.plugins} are not run in chunked mode")
+    prev_meta = data_root / "processed" / cfg.dataset_id / "metadata.json"
+    prev_columns_meta = prev_meta.read_text(encoding="utf-8") if prev_meta.exists() else None
+
+    def finish(res, cfg_used, meta, paths):
+        sha = file_sha256(input_path)
+        if meta is None:                                   # parquet: no text sample was read
+            meta = FileMetadata(file_name=input_path.name, path=str(input_path), format=fmt,
+                                size_bytes=input_path.stat().st_size, sha256=sha)
+        meta.sha256, meta.size_bytes, meta.rows = sha, input_path.stat().st_size, res["rows_input"]
+        meta.path, meta.file_name, meta.format = str(input_path), input_path.name, fmt
+        is_new, entry = FileRegistry(data_root / "raw" / "_registry.json").register(meta, cfg.dataset_id)
+        if not is_new:
+            res["warnings"].append(f"this exact file was processed before (first seen {entry['first_seen']})")
+        raw_copy = preserve_raw(input_path, data_root / "raw", cfg.dataset_id, sha)
+        if prev_columns_meta:
+            tmp = data_root / "processed" / cfg.dataset_id / ".prev_metadata.json"
+            tmp.write_text(prev_columns_meta, encoding="utf-8")
+            changes = _schema_changes(tmp, meta.columns, cfg)
+            tmp.unlink()
+            if changes:
+                res["schema_changes"] = changes
+                if {"added", "removed"} & set(changes):
+                    res["warnings"].append(f"columns changed since the last run: {changes}")
+                    if res["status"] == "completed":
+                        res["status"] = "completed_with_warnings"
+        metadata = _metadata(res, cfg, meta, started, str(raw_copy), config_dir)
+        metadata["output_paths"] = {**paths, "metadata": str(data_root / "processed" / cfg.dataset_id / "metadata.json")}
+        res["output_paths"] = metadata["output_paths"]
+        out = data_root / "processed" / cfg.dataset_id / "metadata.json"
+        out.write_text(json.dumps(metadata, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        return res
+
+    try:
+        return run_chunked(result, input_path, cfg, data_root, warnings, fmt, started, finish)
+    except IngestionError as e:
+        result["error"] = {"code": e.code, "message": e.message}
+        result["processing_mode"] = "chunked"
+        return _finish_failed(result, data_root, started)
 
 
 def _schema_changes(prev_meta: Path, columns: list[str], cfg) -> dict:
