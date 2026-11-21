@@ -18,3 +18,5 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Two sample datasets in one schema: SALES_001 real Superstore (en_US), SALES_002 generated India (en_IN) | [07](discussions/2026-11-21_07_dataset-design.md) |
 | 2026-11-21 | Superstore is downloaded (SHA-256 verified) and never committed; SALES_001 outputs are git-ignored | [07](discussions/2026-11-21_07_dataset-design.md) |
 | 2026-11-21 | 15 planted issue types (~7% of rows) with an answer key; stories: festive boost, March 2026 North Electronics drop | [07](discussions/2026-11-21_07_dataset-design.md) |
+| 2026-11-21 | Rule book = 3 config layers (default → domain → dataset) + locales, validated by Pydantic; typos are errors | [08](discussions/2026-11-21_08_rule-book.md) |
+| 2026-11-21 | Sales rules: row = order line; key = Order_ID + Product; discount = fraction ≤ 0.8; returns only if allowed; no currency conversion | [08](discussions/2026-11-21_08_rule-book.md) |

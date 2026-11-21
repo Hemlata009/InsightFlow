@@ -1,0 +1,34 @@
+# Number, date and currency conventions. A dataset picks one with `locale:`.
+
+en_IN:
+  description: India
+  currency_symbol: "₹"
+  currency_code: INR
+  date_order: DMY                 # 05/03/2026 = 5 March 2026
+  date_format: "%d/%m/%Y"
+  decimal_separator: "."
+  thousands_separator: ","
+  grouping: indian                # 1,00,000 (lakh) and 1,00,00,000 (crore)
+  magnitudes:                     # suffix -> multiplier (case-insensitive, spaces allowed)
+    K: 1.0e3
+    L: 1.0e5
+    LAKH: 1.0e5
+    LAC: 1.0e5
+    CR: 1.0e7
+    CRORE: 1.0e7
+
+en_US:
+  description: United States
+  currency_symbol: "$"
+  currency_code: USD
+  date_order: MDY                 # 05/03/2026 = 3 May 2026
+  date_format: "%m/%d/%Y"
+  decimal_separator: "."
+  thousands_separator: ","
+  grouping: international         # 100,000
+  magnitudes:
+    K: 1.0e3
+    M: 1.0e6
+    MN: 1.0e6
+    B: 1.0e9
+    BN: 1.0e9

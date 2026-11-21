@@ -1,0 +1,29 @@
+# Layer 1: generic policies for ANY dataset (no domain-specific names here).
+# Later layers (configs/domains/<domain>.yaml, configs/datasets/<id>.yaml) override these values.
+
+policies:
+  # Text that means "no value"
+  null_markers: ["", "NA", "N/A", "n/a", "NULL", "null", "None", "-", "--", "?", "nan", "NaN"]
+  strip_whitespace: true            # " north " -> "north"
+  collapse_inner_spaces: true       # "Desk   Organizer" -> "Desk Organizer"
+  categorical_case: match_known     # "NORTH" -> "North" when "North" is an allowed/known value
+  ambiguous_dates: use_locale       # 01/02/2026: read with the locale's date order; never guess
+  extra_date_formats:               # also accepted besides the locale format
+    - "%Y-%m-%d"                    # ISO 2026-03-05
+    - "%d-%b-%y"                    # 05-Mar-26
+    - "%d-%b-%Y"                    # 05-Mar-2026
+  excel_serial_dates: true          # 45746 -> 2025-03-30 (only if inside date_range)
+  percent_strings: true             # "10%" -> 0.10
+  accounting_negatives: true        # "(1,000)" -> -1000
+  magnitude_suffixes: true          # 15K, 2.5M, 1.2 L, 3 Cr (per locale)
+  invalid_value_action: quarantine  # bad values are set aside with a reason, never deleted
+  max_quarantine_share: 0.20        # above this share of rows -> status needs_review
+
+duplicates:
+  exact: drop                       # identical rows (after normalization): keep the first, log the rest
+  key: []                           # business key; set by the domain/dataset layer
+  key_conflict: flag                # same key, different values -> flag for review
+
+# Columns and rules are defined by the domain layer.
+columns: {}
+rules: {}

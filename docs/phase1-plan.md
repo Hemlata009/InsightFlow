@@ -28,8 +28,8 @@ Agreed 2026-11-21. Based on the full proposal in
 |---|---|---|---|
 | 0 | setup | venv, pyproject, folders, smoke test | ✅ done |
 | 1 | `data/sample` | SALES_001 (Superstore) + SALES_002 (India) with planted issues + answer keys | ✅ done |
-| 2 | `configs/` | Data dictionary, business rules, `default.yaml`, `sales.yaml` | ⏳ next |
-| 3 | `ingestion` | Safe CSV/Excel reader + file metadata | |
+| 2 | `configs/` | Layered rule book + validated loader (`insightflow.config`) | ✅ done |
+| 3 | `ingestion` | Safe CSV/Excel reader + file metadata | ⏳ next |
 | 4 | `profiling` | Column-level quality report before changes | |
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | |
 | 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | |

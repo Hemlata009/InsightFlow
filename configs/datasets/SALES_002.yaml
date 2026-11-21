@@ -1,0 +1,20 @@
+# Layer 3: SALES_002, generated Indian sales data.
+dataset_id: SALES_002
+domain: sales
+locale: en_IN
+description: Generated Indian retail sales (2025-01 to 2026-06) with planted stories
+
+date_range: {min: "2025-01-01", max: "2026-06-30"}
+
+columns:
+  Region:
+    allowed_values: [North, South, East, West, Central]
+  Category:
+    allowed_values: [Electronics, Furniture, Office Supplies]
+  Segment:
+    allowed_values: [Consumer, Corporate, Small Business]
+  Quantity:
+    min: -1000                      # returns allowed: negative quantity is valid
+
+business:
+  returns_allowed: true

@@ -1,0 +1,138 @@
+# Layer 2: the SALES domain: data dictionary + business rules.
+# Column names here are the canonical InsightFlow names. `aliases` are other header spellings we accept
+# (compared after normalizing: lower-case, non-letters/digits -> "_", e.g. "Unit Price (INR)" -> "unit_price_inr").
+
+domain: sales
+
+columns:
+  Order_ID:
+    type: string
+    required: true
+    nullable: false
+    missing_policy: quarantine
+    aliases: [order_id, order_no, order_number, invoice_id]
+    description: Order identifier. Repeats across the lines of one order (valid line items).
+  Order_Date:
+    type: date
+    required: true
+    nullable: false
+    missing_policy: quarantine
+    aliases: [order_date, date, invoice_date]
+    description: Date the order was placed.
+  Customer_ID:
+    type: string
+    required: true
+    missing_policy: keep_and_flag
+    aliases: [customer_id, cust_id, customer_code]
+    description: Customer identifier. Always text (keeps leading zeros).
+  Product:
+    type: string
+    required: true
+    nullable: false
+    missing_policy: quarantine
+    aliases: [product, product_name, item, item_name]
+    description: Product name.
+  Category:
+    type: string
+    required: true
+    missing_policy: keep_and_flag
+    aliases: [category, product_category]
+    description: Product category. Allowed values are set per dataset.
+  Region:
+    type: string
+    required: true
+    missing_policy: keep_and_flag
+    aliases: [region, sales_region, zone]
+    description: Sales region. Allowed values are set per dataset.
+  Quantity:
+    type: integer
+    required: true
+    nullable: false
+    missing_policy: quarantine
+    min: 1                       # datasets that allow returns lower this
+    max: 1000
+    aliases: [quantity, qty, units]
+    description: Units sold. Negative = return (only if the dataset allows returns). Zero is invalid.
+  Unit_Price:
+    type: float
+    required: true
+    missing_policy: derive       # = Sales / (Quantity * (1 - Discount))
+    min: 0.01
+    aliases: [unit_price, price, unit_price_inr, unit_price_usd, rate]
+    description: Price of one unit before discount, in the dataset currency.
+  Sales:
+    type: float
+    required: true
+    nullable: false
+    missing_policy: derive       # = Quantity * Unit_Price * (1 - Discount)
+    aliases: [sales, sales_amount, revenue, amount, net_sales]
+    description: Line revenue after discount. Negative = return.
+  Discount:
+    type: float
+    required: true
+    missing_policy: derive       # = 1 - Sales / (Quantity * Unit_Price)
+    min: 0.0
+    max: 0.8
+    aliases: [discount, discount_rate, disc]
+    description: Discount as a FRACTION (0.2 = 20%). "20%" text is converted to 0.2.
+  Profit:
+    type: float
+    required: true
+    missing_policy: keep_and_flag
+    aliases: [profit, margin_amount, net_profit]
+    description: Line profit. Negative = a real loss (valid, not an error).
+  Sub_Category:
+    type: string
+    required: false
+    aliases: [sub_category, subcategory]
+    description: Optional finer product grouping.
+  Segment:
+    type: string
+    required: false
+    aliases: [segment, customer_segment]
+    description: Optional customer segment.
+  State:
+    type: string
+    required: false
+    aliases: [state, province]
+    description: Optional state/province.
+
+duplicates:
+  key: [Order_ID, Product]       # one product appears once per order
+  exact: drop
+  key_conflict: flag
+
+rules:
+  sales_formula:
+    kind: formula
+    description: Sales = Quantity x Unit_Price x (1 - Discount)
+    severity: flag
+    params:
+      target: Sales
+      expression: "Quantity * Unit_Price * (1 - Discount)"
+      abs_tolerance: 0.01
+      rel_tolerance: 0.001
+  return_sign_consistency:
+    kind: same_sign
+    description: A return has BOTH negative Quantity and negative Sales
+    severity: quarantine
+    params:
+      columns: [Quantity, Sales]
+  quantity_not_zero:
+    kind: not_equal
+    description: Quantity of zero is not a sale
+    severity: quarantine
+    params:
+      column: Quantity
+      value: 0
+  order_date_in_range:
+    kind: date_range
+    description: Order date must be inside the dataset's business date range
+    severity: quarantine
+    params:
+      column: Order_Date
+
+business:
+  returns_allowed: false           # negative Quantity/Sales allowed? (dataset decides)
+  negative_profit_allowed: true    # losses are real
+  currency_conversion: false       # never convert currencies in Phase 1
