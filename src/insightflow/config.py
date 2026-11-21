@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
 
 ColumnType = Literal["string", "integer", "float", "date", "boolean"]
-MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive"]
+MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive", "fill_from_group", "impute"]
 RuleKind = Literal["formula", "same_sign", "not_equal", "date_range"]
 Severity = Literal["quarantine", "flag"]
 
@@ -43,6 +43,9 @@ class ColumnSpec(Strict):
     normalize_case: bool = False      # "NORTH"/" north " -> the known/most common spelling
     derive_expression: str | None = None   # used when missing_policy == "derive", e.g. "Sales / Quantity"
     derive_round: int | None = None
+    group_by: list[str] = Field(default_factory=list)   # fill_from_group: copy the value other rows of the group agree on
+    impute_method: Literal["median", "mean", "mode"] | None = None
+    max_skew_for_mean: float = 1.0                       # mean imputation refused if |skewness| is above this
     description: str = ""
 
     @model_validator(mode="after")
@@ -52,6 +55,13 @@ class ColumnSpec(Strict):
                 raise ValueError(f"{self.name}: missing_policy derive needs derive_expression")
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9_.\s+\-*/()]+", self.derive_expression):
                 raise ValueError(f"{self.name}: derive_expression may only use columns, numbers and + - * / ( )")
+        if self.missing_policy == "fill_from_group" and not self.group_by:
+            raise ValueError(f"{self.name}: missing_policy fill_from_group needs group_by")
+        if self.missing_policy == "impute":
+            if not self.impute_method:
+                raise ValueError(f"{self.name}: missing_policy impute needs impute_method")
+            if self.impute_method in ("median", "mean") and self.type not in ("integer", "float"):
+                raise ValueError(f"{self.name}: {self.impute_method} imputation only applies to numeric columns")
         if not self.nullable and self.missing_policy == "keep_and_flag":
             raise ValueError(f"{self.name}: conflict: not nullable but missing_policy keep_and_flag")
         if self.allowed_values is not None and not self.allowed_values:
@@ -179,6 +189,9 @@ class DatasetConfig(Strict):
                     raise ValueError(f"{col}: derive_expression uses unknown column(s): {sorted(used - names)}")
                 if col in used:
                     raise ValueError(f"{col}: derive_expression refers to itself")
+        for col, spec in self.columns.items():
+            if set(spec.group_by) - names or col in spec.group_by:
+                raise ValueError(f"{col}: group_by must list other existing columns")
         unknown = set(self.duplicates.key) - names
         if unknown:
             raise ValueError(f"duplicate key uses unknown column(s): {sorted(unknown)}")

@@ -61,6 +61,15 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig) -> CleanResult:
         elif policy == "fill_value":
             df.loc[missing, col] = spec.fill_value
             actions += [_act("fill_value", r, col, None, spec.fill_value) for r in rows]
+        elif policy == "fill_from_group":
+            a, f, bad_rows = _fill_from_group(df, col, spec.group_by, missing)
+            actions += a
+            flags += f
+            quarantine(bad_rows, f"group_values_conflict:{col}")
+        elif policy == "impute":
+            a, f = _impute(df, col, spec, missing)
+            actions += a
+            flags += f
         elif policy == "derive":
             derived = _derive(df.loc[missing], spec.derive_expression, spec.derive_round)
             ok = derived.notna() & np.isfinite(derived.astype("float64").fillna(np.nan))
@@ -105,6 +114,69 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig) -> CleanResult:
 
     return CleanResult(kept.reset_index(drop=True), q.reset_index(drop=True),
                        dups.reset_index(drop=True), actions, flags)
+
+
+def _fill_from_group(df, col, group_by, missing):
+    """Copy a value from other rows of the same group (e.g. the same order), only if they all agree.
+    Never crosses into another group. Conflicting groups are quarantined; empty groups are flagged."""
+    actions, flags, conflicts = [], [], []
+    keys = df[group_by].astype("string")
+    no_key = keys.isna().any(axis=1)                      # a row without a group key has no group
+    row_keys = keys.fillna("").agg("|".join, axis=1).where(~no_key)
+    known = df[col].notna() & ~no_key
+    stats = (pd.DataFrame({"k": row_keys, "v": df[col]})[known]
+             .groupby("k")["v"].agg(["nunique", "first"]))
+    for i in df.index[missing]:
+        k = row_keys[i]
+        if pd.isna(k) or k not in stats.index:
+            flags.append({"stage": "clean", "flag": "missing_value_no_group_value", "source_row": int(df.at[i, SOURCE_ROW]),
+                          "column": col})
+        elif stats.at[k, "nunique"] > 1:
+            conflicts.append(df.at[i, SOURCE_ROW])
+        else:
+            value = stats.at[k, "first"]
+            df.at[i, col] = value
+            actions.append(_act("filled_from_group", df.at[i, SOURCE_ROW], col, None, _plain(value),
+                                detail=f"same {'+'.join(group_by)} rows agree"))
+    return actions, flags, conflicts
+
+
+def _impute(df, col, spec, missing):
+    known = df.loc[~missing, col]
+    rows = df.loc[missing, SOURCE_ROW]
+    if known.empty:
+        return [], [{"stage": "clean", "flag": "imputation_skipped_no_data", "source_row": int(r), "column": col}
+                    for r in rows]
+    method = spec.impute_method
+    if method == "mode":
+        value = known.mode().sort_values().iloc[0]
+    else:
+        num = known.astype("float64")
+        skew = float(num.skew()) if len(num) > 2 else 0.0
+        if method == "mean" and abs(skew) > spec.max_skew_for_mean:
+            return [], [{"stage": "clean", "flag": "imputation_skipped_skewed", "source_row": int(r), "column": col,
+                         "detail": f"skewness {skew:.2f} > {spec.max_skew_for_mean}: the mean would be misleading"}
+                        for r in rows]
+        value = float(num.median() if method == "median" else num.mean())
+        if spec.type == "integer":
+            value = int(round(value))
+    before = _dist(known)
+    df.loc[missing, col] = value
+    after = _dist(df[col])
+    detail = f"{method}={_plain(value)}; distribution before {before} after {after}"
+    return [_act(f"imputed_{method}", r, col, None, _plain(value), detail=detail) for r in rows], []
+
+
+def _dist(s: pd.Series) -> dict:
+    if not pd.api.types.is_numeric_dtype(s):
+        return {"n": int(s.notna().sum())}
+    f = s.astype("float64")
+    return {"n": int(f.notna().sum()), "mean": round(float(f.mean()), 4), "median": round(float(f.median()), 4),
+            "std": round(float(f.std()), 4) if f.notna().sum() > 1 else 0.0}
+
+
+def _plain(v):
+    return v.item() if hasattr(v, "item") else v
 
 
 def _derive(rows: pd.DataFrame, expression: str, digits: int | None) -> pd.Series:
