@@ -18,7 +18,8 @@ from insightflow.ingestion import SOURCE_ROW
 
 from .patterns import EXCEL_SERIAL_RANGE, FAMILY, PLAIN_NUMBER, classify, slash_date_parts
 
-EXPECTED_FAMILY = {"integer": "numeric", "float": "numeric", "date": "date", "boolean": "boolean"}
+EXPECTED_FAMILY = {"integer": "numeric", "float": "numeric", "date": "date", "datetime": "date",
+                   "boolean": "boolean"}
 N_EXAMPLES = 3
 
 
@@ -196,7 +197,7 @@ def _findings(report: dict) -> list[dict]:
         if c.get("possible_excel_serial"):
             add("info", name, f"{c['possible_excel_serial']} value(s) look like Excel date numbers")
         other_dates = {k: v for k, v in c["patterns"].items() if k in ("date_iso", "date_month_name")}
-        if c["expected_type"] == "date" and other_dates:
+        if c["expected_type"] in ("date", "datetime") and other_dates:
             add("info", name, f"mixed date styles: {other_dates}")
         if c.get("slash_dates_outside_date_range"):
             add("error", name, f"{c['slash_dates_outside_date_range']} date(s) outside the business date range, "

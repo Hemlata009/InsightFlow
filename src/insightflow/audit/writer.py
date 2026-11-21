@@ -36,12 +36,12 @@ def _csv(path: Path, df: pd.DataFrame) -> Path:
     return path
 
 
-def to_output_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Typed frame -> stable text output: ISO dates, plain numbers, blanks for missing."""
+def to_output_frame(df: pd.DataFrame, time_columns=()) -> pd.DataFrame:
+    """Typed frame -> stable text output: ISO dates (with time for `time_columns`), plain numbers, blanks."""
     out = df.copy()
     for c in out.columns:
         if pd.api.types.is_datetime64_any_dtype(out[c]):
-            out[c] = out[c].dt.strftime("%Y-%m-%d")
+            out[c] = out[c].dt.strftime("%Y-%m-%d %H:%M:%S" if c in time_columns else "%Y-%m-%d")
     return out.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})
 
 
@@ -64,11 +64,11 @@ def preserve_raw(src: Path, raw_root: Path, dataset_id: str, sha256: str) -> Pat
 
 def write_run(*, data_root: Path, dataset_id: str, domain: str, cleaned: pd.DataFrame,
               quarantine: pd.DataFrame, duplicates: pd.DataFrame, quality_report: dict,
-              cleaning_log: list[dict], metadata: dict) -> dict[str, str]:
+              cleaning_log: list[dict], metadata: dict, time_columns=()) -> dict[str, str]:
     processed = data_root / "processed" / dataset_id
     qdir = data_root / "quarantine" / dataset_id
     paths = {
-        "cleaned": _csv(processed / f"cleaned_{domain}.csv", to_output_frame(cleaned)),
+        "cleaned": _csv(processed / f"cleaned_{domain}.csv", to_output_frame(cleaned, time_columns)),
         "quarantine": _csv(qdir / "quarantined_rows.csv", quarantine.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})),
         "duplicates": _csv(qdir / "duplicates_removed.csv", duplicates.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})),
         "quality_report": _json(processed / "quality_report.json", quality_report),

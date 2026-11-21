@@ -58,7 +58,7 @@ def build_schema(cfg: DatasetConfig, present: list[str]) -> pa.DataFrameSchema:
             checks.append(pa.Check.le(spec.max))
         if spec.allowed_values:
             checks.append(pa.Check.isin(spec.allowed_values))
-        if spec.type == "date":
+        if spec.type in ("date", "datetime"):
             checks.append(pa.Check(lambda s: pd.api.types.is_datetime64_any_dtype(s), element_wise=False,
                                    name="is_date"))
         cols[name] = pa.Column(PANDERA_DTYPE.get(spec.type), checks, nullable=spec.nullable, required=True)
@@ -118,8 +118,9 @@ def _evaluate(rule: RuleSpec, df: pd.DataFrame, cfg: DatasetConfig) -> pd.Series
         return df[p["column"]].eq(p["value"]).fillna(False).astype(bool)
     if rule.kind == "date_range":
         d = df[p["column"]]
-        lo, hi = pd.Timestamp(cfg.date_range.min), pd.Timestamp(cfg.date_range.max)
-        return (d.notna() & ((d < lo) | (d > hi))).fillna(False).astype(bool)
+        lo = pd.Timestamp(cfg.date_range.min)
+        end = pd.Timestamp(cfg.date_range.max) + pd.Timedelta(days=1)    # the whole last day is inside
+        return (d.notna() & ((d < lo) | (d >= end))).fillna(False).astype(bool)
     raise ValueError(f"unknown rule kind {rule.kind}")
 
 

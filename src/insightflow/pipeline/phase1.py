@@ -182,7 +182,8 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     result["output_paths"] = write_run(
         data_root=data_root, dataset_id=dataset_id, domain=cfg.domain, cleaned=final,
         quarantine=quarantine, duplicates=cleaned.duplicates, quality_report=quality,
-        cleaning_log=log, metadata=metadata)
+        cleaning_log=log, metadata=metadata,
+        time_columns=[c for c, s in cfg.columns.items() if s.type == "datetime"])
     return result
 
 

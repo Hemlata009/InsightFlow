@@ -35,8 +35,11 @@ REFUSAL_PATTERNS = [
 ]
 
 
-def parse_dates(values: pd.Series, cfg: DatasetConfig) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Returns (dates, rule_used, failure_reason); index aligned with `values` (blank -> NaT, no reason)."""
+def parse_dates(values: pd.Series, cfg: DatasetConfig, *, keep_time: bool = False
+                ) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Returns (dates, rule_used, failure_reason); index aligned with `values` (blank -> NaT, no reason).
+    keep_time=False (column type "date"): the time of day is dropped (and logged).
+    keep_time=True  (column type "datetime"): the time is kept, converted to the business time zone."""
     text = values.astype("string").str.strip()
     out = pd.Series(pd.NaT, index=values.index, dtype="datetime64[us]")
     rule = pd.Series(pd.NA, index=values.index, dtype="string")
@@ -50,7 +53,8 @@ def parse_dates(values: pd.Series, cfg: DatasetConfig) -> tuple[pd.Series, pd.Se
         if in_range_only:
             ok &= (parsed >= lo) & (parsed < hi)
         idx = parsed[ok].index
-        out.loc[idx] = parsed[ok].dt.normalize().astype("datetime64[us]")
+        kept = parsed[ok] if keep_time else parsed[ok].dt.normalize()
+        out.loc[idx] = kept.astype("datetime64[us]")
         rule.loc[idx] = name
         todo = todo & ~text.index.isin(idx)
 
@@ -67,10 +71,12 @@ def parse_dates(values: pd.Series, cfg: DatasetConfig) -> tuple[pd.Series, pd.Se
         if short.any():
             accept(pd.to_datetime(text[todo][short], format=cfg.locale.date_format.replace("%Y", "%y"),
                                   errors="coerce"), "two_digit_year")
+    for suffix in (" %H:%M:%S", " %H:%M"):                      # 05/03/2025 14:30
+        attempt(cfg.locale.date_format + suffix, "locale_datetime" if keep_time else "datetime_time_dropped")
     for fmt in p.extra_date_formats:
         attempt(fmt, f"date_format:{fmt}")
     for fmt in NAIVE_DATETIME_FORMATS:
-        attempt(fmt, "datetime_time_dropped")
+        attempt(fmt, "iso_datetime" if keep_time else "datetime_time_dropped")
 
     if todo.any() and p.timezone:
         aware = text[todo].str.fullmatch(TZ_AWARE).fillna(False)

@@ -19,7 +19,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
 
-ColumnType = Literal["string", "integer", "float", "date", "boolean"]
+ColumnType = Literal["string", "integer", "float", "date", "datetime", "boolean"]
+DATE_TYPES = ("date", "datetime")     # "date" keeps the calendar day only; "datetime" also keeps the time
 MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive", "fill_from_group", "impute"]
 RuleKind = Literal["formula", "same_sign", "not_equal", "date_range"]
 Severity = Literal["quarantine", "flag"]
@@ -211,7 +212,7 @@ class DatasetConfig(Strict):
         c = self.currency
         if c.foreign_amounts == "convert" or c.reporting_currency:
             col = c.rate_date_column
-            if not col or col not in self.columns or self.columns[col].type != "date":
+            if not col or col not in self.columns or self.columns[col].type not in DATE_TYPES:
                 raise ValueError("currency conversion needs rate_date_column = an existing date column")
             if not any(s.money for s in self.columns.values()):
                 raise ValueError("currency conversion needs at least one column with money: true")

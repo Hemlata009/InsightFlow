@@ -82,8 +82,8 @@ def normalize(raw: pd.DataFrame, cfg: DatasetConfig, *,
             res.data[canon] = _strings(text, spec, cfg, rows, canon, res, (spellings or {}).get(canon))
         elif spec.type in ("integer", "float"):
             res.data[canon] = _numbers(text, spec, cfg, rows, canon, res)
-        elif spec.type == "date":
-            res.data[canon] = _dates(text, cfg, rows, canon, res)
+        elif spec.type in ("date", "datetime"):
+            res.data[canon] = _dates(text, cfg, rows, canon, res, keep_time=spec.type == "datetime")
         else:
             res.data[canon] = _booleans(text, rows, canon, res)
 
@@ -133,7 +133,7 @@ def _jsonable(v):
     if v is None or (not isinstance(v, str) and pd.isna(v)):
         return None
     if isinstance(v, pd.Timestamp):
-        return v.date().isoformat()
+        return v.date().isoformat() if v == v.normalize() else v.isoformat(sep=" ")
     return v.item() if hasattr(v, "item") else v
 
 
@@ -200,9 +200,10 @@ def _numbers(text, spec, cfg, rows, col, res) -> pd.Series:
     return out
 
 
-def _dates(text, cfg, rows, col, res) -> pd.Series:
-    dates, rule, reason = parse_dates(text, cfg)
-    logged = rule.notna() & rule.ne("locale_format")
+def _dates(text, cfg, rows, col, res, keep_time: bool = False) -> pd.Series:
+    dates, rule, reason = parse_dates(text, cfg, keep_time=keep_time)
+    quiet = {"locale_format", "locale_datetime", "iso_datetime"} if keep_time else {"locale_format"}
+    logged = rule.notna() & ~rule.isin(quiet)
     for i in text[logged].index:
         res.changes.append(_chg(f"date:{rule[i]}", rows[i], col, text[i], dates[i]))
     for i in text[reason.notna()].index:
