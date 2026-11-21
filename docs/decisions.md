@@ -42,3 +42,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Currency conversion via CurrencyConverter + ECB rates, opt-in (foreign amounts at row date; reporting columns) | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
 | 2026-11-21 | pycel rejected (GPL-3.0); uncalculated formulas are detected and set aside instead | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
 | 2026-11-21 | Add-on steps via pluggy; plugins may change values but never add/drop rows | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
+| 2026-11-21 | Pushed to private GitHub repo Hemlata009/InsightFlow; GitHub Actions disabled; push only when asked | [15](discussions/2026-11-21_15_github-push.md) |

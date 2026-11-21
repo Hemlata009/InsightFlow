@@ -20,6 +20,7 @@
 - 2026-11-21: **React explorer**: Run pipeline / Edge-case lab / Rule book, local FastAPI, 266 tests passing ([discussion 12](discussions/2026-11-21_12_react-explorer.md))
 - 2026-11-21: **Edge cases**: 95 new tests in 5 groups; 6 bugs found and fixed; 363 tests passing ([discussion 13](discussions/2026-11-21_13_edge-cases.md))
 - 2026-11-21: **Gaps closed with existing tools**: DuckDB chunked mode (600k rows, 338 MB peak), ECB currency conversion, defusedxml, read_fwf, merged cells, pluggy hooks; 401 tests ([discussion 14](discussions/2026-11-21_14_existing-tools-for-gaps.md))
+- 2026-11-21: **Pushed to GitHub** (private, Actions disabled): https://github.com/Hemlata009/InsightFlow
 
 ## Current
 User explores Phase 1 in the **React explorer** (`python -m harness ui` → http://127.0.0.1:8000), then we review edge cases and requirements
