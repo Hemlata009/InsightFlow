@@ -20,15 +20,15 @@ Agreed 2026-11-21. Based on the full proposal in
 - Locale: **India**: INR (₹), day-first dates (DD/MM/YYYY), lakh/crore grouping and magnitudes.
   US/international is available as a config option.
 - Formats: CSV and Excel (.xlsx).
-- Practice data: generated, with planted issues and a known answer key.
+- Practice data: SALES_001 real Superstore (en_US) + SALES_002 generated India (en_IN), both with answer keys. See [datasets.md](datasets.md).
 
 ## Steps
 
 | Step | Module | Deliverable | Status |
 |---|---|---|---|
 | 0 | setup | venv, pyproject, folders, smoke test | ✅ done |
-| 1 | `data/sample` | Generated sales data with planted issues + answer key | ⏳ next |
-| 2 | `configs/` | Data dictionary, business rules, `default.yaml`, `sales.yaml` | |
+| 1 | `data/sample` | SALES_001 (Superstore) + SALES_002 (India) with planted issues + answer keys | ✅ done |
+| 2 | `configs/` | Data dictionary, business rules, `default.yaml`, `sales.yaml` | ⏳ next |
 | 3 | `ingestion` | Safe CSV/Excel reader + file metadata | |
 | 4 | `profiling` | Column-level quality report before changes | |
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | |

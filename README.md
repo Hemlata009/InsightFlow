@@ -15,12 +15,13 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 - [Decision log](docs/decisions.md): every decision, one line each
 - [Discussions](docs/discussions/): one file per discussion, with the full reasoning
 - [Phase 1 plan](docs/phase1-plan.md): steps and the edge-case test backlog
+- [Sample datasets](docs/datasets.md): SALES_001 + SALES_002, answer keys, how to rebuild
 - [Local harness](docs/harness.md): how to run every dev task safely on this PC
 - [Progress](docs/progress.md): where we are now
 
 ## Status
 
-Phase 1, Step 0 (setup) and the local harness are done. Next: Milestone 1, the sales dataset.
+Phase 1: setup, local harness and Milestone 1 (sample datasets) done. Next: Step 2, data dictionary and business rules.
 
 > Run every dev task through the harness. See [CLAUDE.md](CLAUDE.md) and [docs/harness.md](docs/harness.md).
 

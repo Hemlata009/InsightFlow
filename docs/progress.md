@@ -7,9 +7,10 @@
 - 2026-11-21: Phase 1 lean plan agreed ([phase1-plan.md](phase1-plan.md))
 - 2026-11-21: **Phase 1, Step 0: setup** (venv, packages, folders, smoke test, 14 tests passing)
 - 2026-11-21: **Local harness** (`harness/`): resource guard, watchdog, SQLite run history (24 tests passing)
+- 2026-11-21: **Phase 1, Milestone 1: sample datasets**: SALES_001 (Superstore) + SALES_002 (India), answer keys ([datasets.md](datasets.md)), 49 tests passing
 
 ## Current
-Phase 1, Step 1 (Milestone 1): **sales dataset**, combining generated practice data and Superstore (design awaiting confirmation)
+Phase 1, Step 2: **data dictionary and business rules** (`configs/`)
 
 ## Next
-Step 2: data dictionary and business rules (`configs/`)
+Step 3: ingestion (safe CSV/Excel reader)

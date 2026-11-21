@@ -78,3 +78,21 @@ def test_runs_are_recorded(tmp_path):
     run_guarded([sys.executable, "-c", "pass"], cfg=cfg)
     rows = db.recent(tmp_path / "h.db")
     assert len(rows) == 1 and rows[0][1] == "passed"
+
+
+def test_relative_venv_python_path_works(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    res = run_guarded([".venv/Scripts/python", "-c", "pass"], cfg=cfg)
+    assert res.outcome == "passed"
+
+
+def test_missing_program_fails_cleanly(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    res = run_guarded(["no-such-program-xyz"], cfg=cfg)
+    assert res.outcome == "failed" and "could not start" in res.note
+
+
+def test_task_can_print_rupee_sign(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    res = run_guarded([sys.executable, "-c", "print('\u20b9 1,00,000')"], cfg=cfg)
+    assert res.outcome == "passed"

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import psutil
 
@@ -50,6 +54,17 @@ def _kill_tree(proc: psutil.Process) -> None:
     psutil.wait_procs(procs, timeout=5)
 
 
+def resolve_command(cmd: list[str]) -> list[str]:
+    """Make the program path work on Windows: `python` means this venv's Python, and relative
+    paths (e.g. `.venv/Scripts/python`) are resolved against the project root."""
+    prog = cmd[0]
+    if prog in ("python", "python3", "py"):
+        return [sys.executable, *cmd[1:]]
+    candidate = (ROOT / prog)
+    found = shutil.which(str(candidate)) if not Path(prog).is_absolute() else None
+    return [found or shutil.which(prog) or prog, *cmd[1:]]
+
+
 def wait_for_resources(cfg: dict, seconds: float) -> Verdict:
     deadline = time.monotonic() + seconds
     verdict = evaluate(Snapshot.take(), cfg)
@@ -80,8 +95,16 @@ def run_guarded(
         _save(db_path, cmd, res, record_history)
         return res
 
+    cmd = resolve_command(cmd)
     start = time.monotonic()
-    popen = subprocess.Popen(cmd, cwd=ROOT)
+    try:
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}  # print ₹ safely
+        popen = subprocess.Popen(cmd, cwd=ROOT, env=env)
+    except OSError as e:
+        res = RunResult("failed", None, 0.0, 0, Snapshot.take(0.1).available_mb, verdict,
+                        f"could not start {cmd[0]!r}: {e.strerror or e}")
+        _save(db_path, cmd, res, record_history)
+        return res
     proc = psutil.Process(popen.pid)
     peak, min_free, outcome, note = 0, 10**9, None, ""
 

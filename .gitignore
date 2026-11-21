@@ -26,3 +26,6 @@ Thumbs.db
 
 # Local harness state (run history DB, logs)
 .local/
+
+# Superstore-derived sample (licence unclear; rebuild with scripts.sample_data)
+data/sample/SALES_001/

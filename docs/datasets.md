@@ -1,0 +1,77 @@
+# Sample Datasets (Phase 1, Milestone 1)
+
+Two datasets in the **same InsightFlow schema** but with **different locales**. The engine must handle
+both without code changes, which tests the domain-agnostic, config-driven design.
+
+| | SALES_001 | SALES_002 |
+|---|---|---|
+| Source | Real: Tableau "Sample - Superstore" (US) | Generated: `scripts/sample_data/india.py` |
+| Locale | en_US: USD `$`, MM/DD/YYYY, 1,234.56, K/M | en_IN: INR `₹`, DD/MM/YYYY, 1,00,000.00, K/L/Cr |
+| Rows (truth → messy) | 9,994 → 10,074 | 1,005 → 1,013 |
+| Dates | 2014-01-03 … 2017-12-30 | 2025-01-01 … 2026-06-30 |
+| Planted issues | 720 (~7%) | 72 (~7%) |
+| Messy CSV | cp1252 encoding, comma delimiter, original Superstore headers | UTF-8 with BOM, **semicolon** delimiter, inconsistent headers |
+| In git? | **No** (licence unclear). Rebuild locally | Yes |
+
+## Files (per dataset, in `data/sample/<ID>/`)
+| File | What it is |
+|---|---|
+| `sales_truth.csv` | Clean "correct answer" data: UTF-8, ISO dates, canonical column names, `source_row_id` |
+| `sales_messy.csv` | The exam: the same data with planted problems (all values as text) |
+| `sales_messy.xlsx` | The same messy data in Excel: sheets `Notes` + `Sales`, **header on row 3** |
+| `answer_key.json` | Every planted problem: `issue_id, issue_type, column, messy_row, source_row_id, messy_value, expected_value, expected_action`, plus column mapping, natural issues and stories |
+
+`messy_row` = 0-based data row in the messy file. `expected_value` = the true value from the truth file
+(for `quarantine` / `flag_missing` the cleaner can't know it; it's recorded for checking only).
+
+## Schema (canonical names)
+| Column | Type | Notes |
+|---|---|---|
+| Order_ID | string | Repeats across lines of the same order (valid line items) |
+| Order_Date | date | |
+| Customer_ID | string | Keep as text (leading characters/zeros) |
+| Product | string | |
+| Category | string | |
+| Region | string | |
+| Quantity | integer | Negative = return (SALES_002 only) |
+| Unit_Price | float | SALES_001: derived = Sales / (Quantity × (1 − Discount)) |
+| Sales | float | = Quantity × Unit_Price × (1 − Discount) |
+| Discount | float | Fraction 0–0.8 (0.2 = 20%) |
+| Profit | float | Negative = a real loss (valid) |
+| Sub_Category, Segment, State | string | Optional extras, useful for root-cause analysis later |
+
+## Planted issue types (both datasets)
+| Issue | Example (SALES_002) | Expected action |
+|---|---|---|
+| null_marker | `NA`, `N/A`, `NULL`, `-`, empty | flag_missing |
+| date_iso / date_month_name / date_excel_serial | `2025-05-04`, `13-Feb-25`, `45746` | normalize |
+| date_out_of_range | `19/02/2035` | quarantine |
+| currency_grouped | `₹1,23,456.00` / `$1,234.56` | normalize |
+| magnitude_suffix | `6K`, `1.2345678 L`, `2.5 Cr` / `1.5342K` | normalize |
+| accounting_negative | `(1,401.97)` → −1401.97 | normalize |
+| percent_string | `5%` → 0.05 | normalize |
+| non_numeric_text | `abc`, `#VALUE!`, `TBD` | quarantine |
+| invalid_quantity | `-999` | quarantine |
+| invalid_discount | `1.5` (150%) | quarantine |
+| whitespace_case | `DESK ORGANIZER  ` | normalize |
+| exact_duplicate | identical row right after the original | deduplicate |
+| hidden_duplicate | copy with ` north ` / upper-case product | normalize_then_deduplicate |
+
+## Natural issues in SALES_001 (real data, found by inspection)
+- Raw file encoding is **cp1252**, not UTF-8.
+- **1** fully duplicated row (kept in truth: may be genuine → flag for review).
+- **8** repeated `Order ID + Product ID` pairs.
+- **438** postal codes lost their leading zero (`1040` should be `01040`), so IDs must be read as text.
+
+## Planted stories in SALES_002 (for Phases 2–4)
+- **Festive boost:** October–November get 1.6× the orders (Diwali season).
+- **Planted drop:** North-region Electronics loses ~30% of lines in March 2026. Phase 3 should find and explain it.
+- **Returns:** ~2% of lines have negative Quantity/Sales/Profit (valid, not errors).
+
+## How to rebuild
+```powershell
+.\.venv\Scripts\python -m harness run -- python -m scripts.fetch_superstore   # SALES_001 raw (verified by SHA-256)
+.\.venv\Scripts\python -m harness run -- python -m scripts.sample_data        # builds both datasets
+.\.venv\Scripts\python -m harness test -q tests/sample_data
+```
+Raw Superstore: `data/raw/superstore/Sample - Superstore.csv`, SHA-256 `58fb59c6…4a6`, never modified.

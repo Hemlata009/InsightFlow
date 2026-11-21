@@ -15,3 +15,6 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Phase 1 tools: pandas, numpy, openpyxl, PyYAML, Pydantic, Pandera, pytest; others deferred | [04](discussions/2026-11-21_04_phase1-plan.md) |
 | 2026-11-21 | Every dev task runs through the local harness `harness/` (resource guard + watchdog + run history) | [06](discussions/2026-11-21_06_local-harness.md) |
 | 2026-11-21 | Local storage is SQLite for now; Docker + PostgreSQL deferred to Phase 9 (5.9 GB RAM, ~0.8 GB free, no WSL) | [06](discussions/2026-11-21_06_local-harness.md) |
+| 2026-11-21 | Two sample datasets in one schema: SALES_001 real Superstore (en_US), SALES_002 generated India (en_IN) | [07](discussions/2026-11-21_07_dataset-design.md) |
+| 2026-11-21 | Superstore is downloaded (SHA-256 verified) and never committed; SALES_001 outputs are git-ignored | [07](discussions/2026-11-21_07_dataset-design.md) |
+| 2026-11-21 | 15 planted issue types (~7% of rows) with an answer key; stories: festive boost, March 2026 North Electronics drop | [07](discussions/2026-11-21_07_dataset-design.md) |
