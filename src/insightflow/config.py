@@ -41,10 +41,21 @@ class ColumnSpec(Strict):
     allowed_values: list[str] | None = None
     aliases: list[str] = Field(default_factory=list)
     normalize_case: bool = False      # "NORTH"/" north " -> the known/most common spelling
+    derive_expression: str | None = None   # used when missing_policy == "derive", e.g. "Sales / Quantity"
+    derive_round: int | None = None
     description: str = ""
 
     @model_validator(mode="after")
     def _check(self):
+        if self.missing_policy == "derive":
+            if not self.derive_expression:
+                raise ValueError(f"{self.name}: missing_policy derive needs derive_expression")
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9_.\s+\-*/()]+", self.derive_expression):
+                raise ValueError(f"{self.name}: derive_expression may only use columns, numbers and + - * / ( )")
+        if not self.nullable and self.missing_policy == "keep_and_flag":
+            raise ValueError(f"{self.name}: conflict: not nullable but missing_policy keep_and_flag")
+        if self.allowed_values is not None and not self.allowed_values:
+            raise ValueError(f"{self.name}: allowed_values is empty")
         if self.normalize_case and self.type != "string":
             raise ValueError(f"{self.name}: normalize_case only applies to string columns")
         if self.min is not None and self.max is not None and self.min > self.max:
@@ -146,6 +157,13 @@ class DatasetConfig(Strict):
             unknown = rule.referenced_columns() - names
             if unknown:
                 raise ValueError(f"rule {rid!r} uses unknown column(s): {sorted(unknown)}")
+        for col, spec in self.columns.items():
+            if spec.derive_expression:
+                used = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", spec.derive_expression))
+                if used - names:
+                    raise ValueError(f"{col}: derive_expression uses unknown column(s): {sorted(used - names)}")
+                if col in used:
+                    raise ValueError(f"{col}: derive_expression refers to itself")
         unknown = set(self.duplicates.key) - names
         if unknown:
             raise ValueError(f"duplicate key uses unknown column(s): {sorted(unknown)}")

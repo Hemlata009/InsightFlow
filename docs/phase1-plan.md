@@ -32,8 +32,8 @@ Agreed 2026-11-21. Based on the full proposal in
 | 3 | `ingestion` | Safe CSV/Excel reader + file metadata + repeat-upload registry | ✅ done |
 | 4 | `profiling` | Column-level health report before changes (patterns, ranges, duplicates) | ✅ done |
 | 5 | `normalization` | Column names, null markers, numbers/magnitudes, dates, booleans, IDs | ✅ done |
-| 6 | `cleaning` | Missing values, duplicates, invalid values → quarantine | ⏳ next |
-| 7 | `validation` | Pandera schema from config + business rules | |
+| 6 | `cleaning` | Missing values (quarantine/flag/fill/derive), duplicates, key conflicts → quarantine | ✅ done |
+| 7 | `validation` | Pandera schema from config + business rules | ⏳ next |
 | 8 | `audit` | cleaning_log, quality_report, metadata, result object | |
 | 9 | `pipeline` | End-to-end run + idempotency test | |
 
@@ -69,11 +69,11 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Mixed types in one column
 
 ### Step 6: Cleaning
-- [ ] Meaningful missing (zero vs unknown) per column policy
-- [ ] No fill across group boundaries
-- [ ] Duplicates found only after normalization
-- [ ] Repeated Order_ID that are valid line items (configurable key)
-- [ ] Imputation is logged, and skipped for skewed columns by default
+- [x] Meaningful missing (zero vs unknown) per column policy
+- [x] No fill across group boundaries
+- [x] Duplicates found only after normalization
+- [x] Repeated Order_ID that are valid line items (configurable key)
+- [x] Imputation is logged, and skipped for skewed columns by default
 
 ### Step 7: Validation & business rules
 - [ ] Required / optional / extra / missing columns

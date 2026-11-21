@@ -120,3 +120,18 @@ def test_unknown_locale_rejected(config_copy):
 def test_missing_dataset_config():
     with pytest.raises(FileNotFoundError):
         load_dataset_config("NOPE_999")
+
+
+@pytest.mark.parametrize("change, message", [
+    (lambda d: d["columns"]["Order_ID"].update(missing_policy="keep_and_flag"), "conflict"),
+    (lambda d: d["columns"]["Sales"].pop("derive_expression"), "needs derive_expression"),
+    (lambda d: d["columns"]["Sales"].update(derive_expression="Quantity * Price"), "unknown column"),
+    (lambda d: d["columns"]["Sales"].update(derive_expression="Sales * 2"), "refers to itself"),
+    (lambda d: d["columns"]["Sales"].update(derive_expression="__import__('os')"), "may only use"),
+    (lambda d: d["columns"]["Region"].update(allowed_values=[]), "empty"),
+    (lambda d: d["columns"]["Quantity"].update(normalize_case=True), "only applies to string"),
+])
+def test_conflicting_rules_rejected(config_copy, change, message):
+    _edit(config_copy / "domains" / "sales.yaml", change)
+    with pytest.raises(ValidationError, match=message):
+        load_dataset_config("SALES_002", config_copy)

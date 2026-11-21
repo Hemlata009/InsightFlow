@@ -12,9 +12,10 @@
 - 2026-11-21: **Phase 1, Step 3: ingestion**: safe CSV/Excel reader, 9 edge-case checklist items done, 99 tests passing
 - 2026-11-21: **Phase 1, Step 4: profiling**: health report finds every planted issue with exact counts, 138 tests passing
 - 2026-11-21: **Phase 1, Step 5: normalization**: numbers/dates/text/headers standardized and logged, 190 tests passing
+- 2026-11-21: **Phase 1, Step 6: cleaning**: missing-value policies, duplicates, key conflicts, quarantine
 
 ## Current
-Phase 1, Step 6: **cleaning** (missing values, duplicates, quarantine)
+Phase 1, Step 7: **validation** (schema + business rules)
 
 ## Next
-Step 7: validation (schema + business rules)
+Step 8: audit outputs; Step 9: full pipeline

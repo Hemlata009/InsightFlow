@@ -59,7 +59,9 @@ columns:
   Unit_Price:
     type: float
     required: true
-    missing_policy: derive       # = Sales / (Quantity * (1 - Discount))
+    missing_policy: derive
+    derive_expression: "Sales / (Quantity * (1 - Discount))"
+    derive_round: 4
     min: 0.01
     aliases: [unit_price, price, unit_price_inr, unit_price_usd, rate]
     description: Price of one unit before discount, in the dataset currency.
@@ -67,13 +69,17 @@ columns:
     type: float
     required: true
     nullable: false
-    missing_policy: derive       # = Quantity * Unit_Price * (1 - Discount)
+    missing_policy: derive
+    derive_expression: "Quantity * Unit_Price * (1 - Discount)"
+    derive_round: 2
     aliases: [sales, sales_amount, revenue, amount, net_sales]
     description: Line revenue after discount. Negative = return.
   Discount:
     type: float
     required: true
-    missing_policy: derive       # = 1 - Sales / (Quantity * Unit_Price)
+    missing_policy: derive
+    derive_expression: "1 - Sales / (Quantity * Unit_Price)"
+    derive_round: 4
     min: 0.0
     max: 0.8
     aliases: [discount, discount_rate, disc]
