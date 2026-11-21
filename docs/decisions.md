@@ -59,3 +59,5 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Two minus signs = negative (flagged); missing Order_ID = temporary ID (flagged) | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
 | 2026-11-21 | dateparser (BSD-3) for written dates only; Unix/compact dates on by default within the date range; IST mapped per locale | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
 | 2026-11-21 | Proven repairs from the formula (one bad value, one possible fix); ambiguous rows stay set aside | [20](discussions/2026-11-21_20_recover-set-aside-rows.md) |
+| 2026-11-22 | `policies.header_rows` for two-row headers; ruff added as the static code checker; repair and group keys vectorized | [21](discussions/2026-11-22_21_phase1-closing-checks.md) |
+| 2026-11-22 | Phase 1 closed: tag phase1-v1.4, pushed to GitHub (private, Actions disabled) | [21](discussions/2026-11-22_21_phase1-closing-checks.md) |

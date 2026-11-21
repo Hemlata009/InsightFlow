@@ -272,7 +272,7 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                     if cfg.currency.reporting_currency:
                         from insightflow.normalization.currency import add_reporting_columns
                         kept, _ = add_reporting_columns(kept, cfg)
-                    out = to_output_frame(kept, [c for c, s in cfg.columns.items() if s.type == "datetime"])
+                    out = to_output_frame(kept, [c for c, s in cfg.columns.items() if s.type == "datetime"])   # noqa: F841 (DuckDB reads "out" by name)
                     if i == 0 or not _table_exists(con, "stage"):
                         con.execute("CREATE TABLE stage AS SELECT * FROM out")
                     else:

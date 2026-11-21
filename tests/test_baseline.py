@@ -5,7 +5,6 @@ then re-record with `python -m harness run -- python -m scripts.make_baseline` a
 """
 
 import json
-from pathlib import Path
 
 import pytest
 

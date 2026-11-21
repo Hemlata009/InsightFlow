@@ -47,7 +47,7 @@ def _grouping_patterns(loc: LocaleSpec):
 def _strip_currency(s: str, loc: LocaleSpec, steps: list[str], original: str) -> str:
     for token, code in CURRENCY_TOKENS:
         is_word = token.isalpha() or token.endswith(".")
-        pattern = (rf"(?i)(^|(?<=[\s\d]))" + re.escape(token) + r"(?=[\s\d.,]|$)") if is_word else re.escape(token)
+        pattern = (r"(?i)(^|(?<=[\s\d]))" + re.escape(token) + r"(?=[\s\d.,]|$)") if is_word else re.escape(token)
         if not re.search(pattern, s):
             continue
         if code is None:                                  # "$" or "¥": only valid if it IS the locale's symbol

@@ -42,7 +42,6 @@ def _implicated(reasons: str, formula_cols: set[str]) -> set[str] | None:
 def candidate_rows(norm_data: pd.DataFrame, cleaned, failed_validation: dict) -> pd.DataFrame:
     """Set-aside rows with their standardized values: from the cleaner's output when they failed validation,
     else from the standardized table (they were set aside while cleaning)."""
-    from insightflow.cleaning import REASONS  # noqa: F401  (keeps the import graph obvious)
     in_val = cleaned.data[cleaned.data[SOURCE_ROW].isin(failed_validation)]
     in_clean = set(cleaned.quarantine[SOURCE_ROW].astype(int)) - set(failed_validation)
     from_norm = norm_data[norm_data[SOURCE_ROW].isin(in_clean)]
@@ -62,7 +61,10 @@ def add_original_text(log: list, original: pd.DataFrame, header_changes: dict) -
 
 def repair_rows(candidates: pd.DataFrame, reasons: dict[int, str], cfg) -> tuple[pd.DataFrame, list, list]:
     """candidates: standardized rows (bad cells already blank) that were set aside.
-    Returns (repaired rows, log entries, flags)."""
+    Returns (repaired rows, log entries, flags).
+
+    Batch version: for each repairable column, ALL candidate rows that blame it are recomputed and
+    re-validated in ONE call (a big file can have thousands of candidates; one check per row was slow)."""
     from insightflow.money import evaluate, quantize
     from insightflow.validation import validate
 
@@ -70,19 +72,22 @@ def repair_rows(candidates: pd.DataFrame, reasons: dict[int, str], cfg) -> tuple
     repairable = {c for c in formula_cols if cfg.columns.get(c) and cfg.columns[c].derive_expression}
     if not repairable or candidates.empty:
         return candidates.iloc[0:0], [], []
-    fixed, log, flags = [], [], []
-    for _, row in candidates.iterrows():
-        r = int(row[SOURCE_ROW])
-        blamed = _implicated(reasons.get(r, ""), formula_cols)
-        if not blamed or not blamed <= repairable:
-            continue
-        options = []
-        for col in sorted(blamed):
-            spec = cfg.columns[col]
-            others = {c: row[c] for c in formula_cols if c != col}
-            if any(pd.isna(v) for v in others.values()):
+    cands = candidates.reset_index(drop=True)
+    blamed = {}
+    for i, r in enumerate(cands[SOURCE_ROW].astype(int)):
+        b = _implicated(reasons.get(r, ""), formula_cols)
+        if b and b <= repairable:
+            blamed[i] = b
+    dtypes = {c: str(cands[c].dtype) for c in cands.columns}
+    options: dict[int, list[tuple[str, object]]] = {}
+    for col in sorted(repairable):
+        spec = cfg.columns[col]
+        others = [c for c in formula_cols if c != col]
+        idx, values = [], []
+        for i, b in blamed.items():
+            if col not in b or cands.loc[i, others].isna().any():
                 continue
-            value = evaluate(spec.derive_expression, others)
+            value = evaluate(spec.derive_expression, {c: cands.at[i, c] for c in others})
             if value is None:
                 continue
             if spec.derive_round is not None:
@@ -93,21 +98,34 @@ def repair_rows(candidates: pd.DataFrame, reasons: dict[int, str], cfg) -> tuple
                 value = int(value)
             else:
                 value = float(value)
-            trial = row.copy()
-            trial[col] = value
-            frame = pd.DataFrame([trial]).astype({c: str(candidates[c].dtype) for c in candidates.columns})
-            v = validate(frame, cfg)
-            if v.structural_errors or v.failures:            # must pass EVERY check, flags included
-                continue
-            options.append((col, value, frame))
-        if len(options) != 1:                               # none, or ambiguous (two different fixes fit)
+            idx.append(i)
+            values.append(value)
+        if not idx:
             continue
-        col, value, frame = options[0]
-        fixed.append(frame)
+        trial = cands.loc[idx].copy()
+        trial[col] = values
+        trial = trial.astype(dtypes)
+        v = validate(trial, cfg)                       # ONE check for all rows trying this column
+        if v.structural_errors:
+            continue
+        failing = {f["source_row"] for f in v.failures}  # must pass EVERY check, flags included
+        for i, value in zip(idx, values):
+            if int(cands.at[i, SOURCE_ROW]) not in failing:
+                options.setdefault(i, []).append((col, value))
+    fixed, log, flags = [], [], []
+    for i, opts in sorted(options.items()):
+        if len(opts) != 1:                             # ambiguous: two different fixes fit
+            continue
+        col, value = opts[0]
+        row = cands.loc[i].copy()
+        old = row[col]
+        row[col] = value
+        fixed.append(row)
+        r = int(row[SOURCE_ROW])
         log.append({"stage": "clean", "rule": "repaired_from_formula", "source_row": r, "column": col,
-                    "old": None if pd.isna(row[col]) else str(row[col]), "new": value,
+                    "old": None if pd.isna(old) else str(old), "new": value,
                     "detail": f"{cfg.columns[col].derive_expression} (was set aside: {reasons.get(r)})"})
         flags.append({"stage": "clean", "flag": "repaired_from_formula", "source_row": r, "column": col,
                       "detail": f"recomputed from the other columns: {value}"})
-    out = pd.concat(fixed, ignore_index=True) if fixed else candidates.iloc[0:0]
+    out = pd.DataFrame(fixed).astype(dtypes).reset_index(drop=True) if fixed else cands.iloc[0:0]
     return out, log, flags

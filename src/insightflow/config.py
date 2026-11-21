@@ -155,7 +155,7 @@ class Policies(Strict):
     invalid_value_action: Literal["quarantine"] = "quarantine"
     max_quarantine_share: float = Field(0.2, ge=0, le=1)
     max_file_mb: float = Field(50, gt=0)
-    header_rows: int = Field(1, ge=1, le=5)    # 2 = two-row header ("Sales" over "Q1 | Q2" -> "Sales Q1")
+    header_rows: int = Field(1, ge=1, le=5)    # 2 = two-row header ("Revenue" over "Q1 | Q2" -> "Revenue Q1")
     large_files: Literal["auto", "always", "never"] = "auto"   # chunked mode (DuckDB) for files too big for RAM
     chunk_rows: int = Field(50_000, ge=10)
     duckdb_memory_mb: int = Field(256, ge=64)

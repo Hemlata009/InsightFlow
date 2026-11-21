@@ -94,7 +94,7 @@ class PartialDateContext:
                 self._last = d
 
     @classmethod
-    def from_frame(cls, data: pd.DataFrame, column: str, partial_rows: set[int]) -> "PartialDateContext":
+    def from_frame(cls, data: pd.DataFrame, column: str, partial_rows: set[int]) -> PartialDateContext:
         ctx = cls()
         ctx.update(data[column], data[SOURCE_ROW], partial_rows)
         return ctx

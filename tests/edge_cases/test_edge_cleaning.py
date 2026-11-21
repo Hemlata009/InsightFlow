@@ -1,6 +1,5 @@
 """Edge-case group 4: missing values, imputation, groups, booleans, optional columns."""
 
-from pathlib import Path
 
 import pandas as pd
 import pytest

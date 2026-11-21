@@ -27,7 +27,7 @@ class Snapshot:
     disk_free_mb: int
 
     @classmethod
-    def take(cls, cpu_interval: float = 0.5) -> "Snapshot":
+    def take(cls, cpu_interval: float = 0.5) -> Snapshot:
         """If Windows can't report (e.g. WinError 1455 under memory pressure), assume the worst: 0 free."""
         try:
             mem = psutil.virtual_memory()

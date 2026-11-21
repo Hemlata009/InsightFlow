@@ -169,7 +169,10 @@ def group_keys(df: pd.DataFrame, group_by: list[str]) -> pd.Series:
     """One text key per row for the group columns; NA when any group column is blank (no group)."""
     keys = df[group_by].astype("string")
     no_key = keys.isna().any(axis=1)
-    return keys.fillna("").agg("|".join, axis=1).where(~no_key)
+    joined = keys[group_by[0]].fillna("")               # vectorized (row-wise "|".join was the slowest step)
+    for c in group_by[1:]:
+        joined = joined.str.cat(keys[c].fillna(""), sep="|")
+    return joined.where(~no_key)
 
 
 def group_value_map(df: pd.DataFrame, col: str, group_by: list[str], into: dict | None = None,
