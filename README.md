@@ -15,11 +15,14 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 - [Decision log](docs/decisions.md): every decision, one line each
 - [Discussions](docs/discussions/): one file per discussion, with the full reasoning
 - [Phase 1 plan](docs/phase1-plan.md): steps and the edge-case test backlog
+- [Local harness](docs/harness.md): how to run every dev task safely on this PC
 - [Progress](docs/progress.md): where we are now
 
 ## Status
 
-Phase 1, Step 0 (setup) done. Next: Step 1, generate practice sales data.
+Phase 1, Step 0 (setup) and the local harness are done. Next: Milestone 1, the sales dataset.
+
+> Run every dev task through the harness. See [CLAUDE.md](CLAUDE.md) and [docs/harness.md](docs/harness.md).
 
 ## Setup (Windows PowerShell)
 
@@ -27,5 +30,6 @@ Phase 1, Step 0 (setup) done. Next: Step 1, generate practice sales data.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-pytest
+python -m harness check
+python -m harness test -q
 ```

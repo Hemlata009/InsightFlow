@@ -23,3 +23,6 @@ data/quarantine/*
 .idea/
 Thumbs.db
 .DS_Store
+
+# Local harness state (run history DB, logs)
+.local/

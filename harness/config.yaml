@@ -1,0 +1,24 @@
+# InsightFlow local harness: resource limits.
+# Tuned for this machine: 5.9 GB RAM, 6 cores, ~12 GB free disk (checked 2026-11-21).
+# All values are in MB unless noted.
+
+memory:
+  warn_available_mb: 1000     # below this: run, but warn
+  block_available_mb: 400     # below this: refuse to start (unless --force)
+  critical_available_mb: 250  # while running: kill the task if the system drops below this
+  max_task_mb: 1500           # while running: kill the task if it uses more than this
+
+cpu:
+  warn_load_percent: 85       # warn if the CPU is already this busy
+
+disk:
+  warn_free_mb: 5000
+  block_free_mb: 2000
+
+runner:
+  poll_seconds: 0.25          # how often the watchdog checks the task
+  default_timeout_seconds: 900
+  wait_for_resources_seconds: 0   # >0: wait this long for memory to free up before refusing
+
+paths:
+  db: .local/harness.db       # SQLite run history (ignored by git)

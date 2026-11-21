@@ -13,3 +13,5 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Practice data is generated, with planted issues and an answer key | [04](discussions/2026-11-21_04_phase1-plan.md) |
 | 2026-11-21 | Default locale India (INR, DD/MM/YYYY, lakh/crore); others configurable | [04](discussions/2026-11-21_04_phase1-plan.md) |
 | 2026-11-21 | Phase 1 tools: pandas, numpy, openpyxl, PyYAML, Pydantic, Pandera, pytest; others deferred | [04](discussions/2026-11-21_04_phase1-plan.md) |
+| 2026-11-21 | Every dev task runs through the local harness `harness/` (resource guard + watchdog + run history) | [06](discussions/2026-11-21_06_local-harness.md) |
+| 2026-11-21 | Local storage is SQLite for now; Docker + PostgreSQL deferred to Phase 9 (5.9 GB RAM, ~0.8 GB free, no WSL) | [06](discussions/2026-11-21_06_local-harness.md) |
