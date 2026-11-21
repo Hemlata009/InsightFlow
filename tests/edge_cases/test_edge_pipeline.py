@@ -25,7 +25,8 @@ def test_schema_drift_between_versions_is_reported(tmp_path):
     res = run_phase1(write(tmp_path / "v2.csv", v2), "SALES_002", data_root=root)
     sc = res["schema_changes"]
     assert sc["added"] == ["Notes"] and sc["header_spelling_changed"] == ["'Quantity' -> 'Qty'"]
-    assert any("columns changed since the last run" in w for w in res["warnings"])
+    assert any("extra column(s) not in the rule book added" in n for n in res["notes"])       # Notes: unknown
+    assert not any("since the last run" in w for w in res["warnings"])
     v3 = ",".join(h for h in HEADER.split(",") if h != "Profit") + "\n" + ROW.rsplit(",", 1)[0] + "\n"
     res3 = run_phase1(write(tmp_path / "v3.csv", v3), "SALES_002", data_root=root)
     assert res3["status"] == "failed" and res3["schema_changes"]["removed"] == ["Notes", "Profit"]
@@ -64,3 +65,21 @@ def test_conflicting_rules_two_reasons_for_one_row(tmp_path):
     q = pd.read_csv(res["output_paths"]["quarantine"], encoding="utf-8-sig", dtype=str)
     assert res["rows_quarantined"] == 1
     assert "less_than_or_equal_to(0.8)" in q.loc[0, "_reasons"] and "return_sign_consistency" in q.loc[0, "_reasons"]
+
+
+def test_rule_book_column_disappearing_is_a_warning(tmp_path):
+    root = tmp_path / "data"
+    with_optional = HEADER + ",Segment\n" + ROW + ",Consumer\n"
+    run_phase1(write(tmp_path / "a.csv", with_optional), "SALES_002", data_root=root)
+    res = run_phase1(write(tmp_path / "b.csv", HEADER + "\n" + ROW + "\n"), "SALES_002", data_root=root)
+    assert any("rule-book columns removed since the last run: ['Segment']" in w for w in res["warnings"])
+    assert res["status"] == "completed_with_warnings"
+
+
+def test_truth_after_messy_is_completed(tmp_path):
+    """The explorer case: messy file first, then the truth file (one extra unknown column) -> completed."""
+    root = tmp_path / "data"
+    sample = Path(__file__).resolve().parents[2] / "data" / "sample" / "SALES_002"
+    run_phase1(sample / "sales_messy.csv", "SALES_002", data_root=root)
+    res = run_phase1(sample / "sales_truth.csv", "SALES_002", data_root=root)
+    assert res["status"] == "completed", res["warnings"]

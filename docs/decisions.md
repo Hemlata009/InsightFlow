@@ -52,3 +52,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Run messages split into notes (information) and warnings (act on it); only warnings/set-aside/flags affect the status | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
 | 2026-11-21 | ISO dates are canonical: reading them is not logged as a change | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
 | 2026-11-21 | Baseline re-recorded on purpose for the new rules; tag phase1-v1.1 | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
+| 2026-11-21 | Schema drift: rule-book columns added/removed → warning; unknown extra columns → note | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |

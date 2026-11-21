@@ -28,11 +28,11 @@ re-running the cleaned output changes nothing; the truth file passes (only prove
 "Set aside" = exactly the rows the answer key planted as bad. Clean data = the truth file (numbers within 0.001).
 
 ## Test suite at freeze
-**447 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
+**449 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
 | Group | Tests | Peak RAM |
 |---|---|---|
 | tests/harness | 20 | 150 MB |
-| tests/edge_cases | 146 | 230 MB |
+| tests/edge_cases | 148 | 233 MB |
 | all other tests | 281 | 267 MB |
 
 ## Environment at freeze

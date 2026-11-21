@@ -27,7 +27,7 @@ from insightflow.ingestion import (SOURCE_ROW, FileMetadata, FileRegistry, Inges
                                    file_sha256, read_file)
 from insightflow.ingestion.reader import SUPPORTED
 from insightflow.pipeline.chunked import STREAMABLE, run_chunked
-from insightflow.pipeline.messages import split_messages
+from insightflow.pipeline.messages import is_note, split_messages
 from insightflow.normalization import normalize
 from insightflow.profiling import profile
 
@@ -90,10 +90,7 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     changes = _schema_changes(data_root / "processed" / dataset_id / "metadata.json", meta.columns, cfg)
     if changes:
         result["schema_changes"] = changes       # always recorded
-        structural = {k: v for k, v in changes.items() if k in ("added", "removed")}
-        if structural:                            # only real column changes count as a warning
-            warnings.append("columns changed since the last run: " +
-                            "; ".join(f"{k}: {v}" for k, v in structural.items()))
+        warnings += drift_messages(changes, cfg)
 
     before = profile(raw.data, cfg, meta)
     norm = normalize(raw.data, cfg)
@@ -219,10 +216,13 @@ def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, r
             tmp.unlink()
             if changes:
                 res["schema_changes"] = changes
-                if {"added", "removed"} & set(changes):
-                    res["warnings"].append(f"columns changed since the last run: {changes}")
-                    if res["status"] == "completed":
-                        res["status"] = "completed_with_warnings"
+                for m in drift_messages(changes, cfg):
+                    if is_note(m):
+                        res["notes"].append(m)
+                    else:
+                        res["warnings"].append(m)
+                        if res["status"] == "completed":
+                            res["status"] = "completed_with_warnings"
         metadata = _metadata(res, cfg, meta, started, str(raw_copy), config_dir)
         metadata["output_paths"] = {**paths, "metadata": str(data_root / "processed" / cfg.dataset_id / "metadata.json")}
         res["output_paths"] = metadata["output_paths"]
@@ -236,6 +236,20 @@ def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, r
         result["error"] = {"code": e.code, "message": e.message}
         result["processing_mode"] = "chunked"
         return _finish_failed(result, data_root, started)
+
+
+def drift_messages(changes: dict, cfg) -> list[str]:
+    """Rule-book columns added/removed since the last run -> a warning. Unknown extra columns -> a note."""
+    out = []
+    for kind in ("added", "removed"):
+        cols = changes.get(kind, [])
+        known = [c for c in cols if c in cfg.columns]
+        extra = [c for c in cols if c not in cfg.columns]
+        if known:
+            out.append(f"rule-book columns {kind} since the last run: {known}")
+        if extra:
+            out.append(f"extra column(s) not in the rule book {kind} since the last run: {extra}")
+    return out
 
 
 def _schema_changes(prev_meta: Path, columns: list[str], cfg) -> dict:

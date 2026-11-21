@@ -33,6 +33,10 @@ make a run "completed_with_warnings". Unknown messages default to warnings (safe
 3. SALES_001's truth (real data) contains invisible non-breaking spaces; the check now accepts **only proven
    spacing-only** changes there and fails on anything else.
 
+4. **In the web UI the truth file still showed "with warnings"**: the previous run there was the messy file,
+   and the truth file has one extra column (`source_row_id`) the rule book doesn't know, which counted as
+   "columns changed". Now only **rule-book** columns added/removed are warnings; unknown extra columns are notes.
+
 ## Simple explanation
 I wrote the shop's house rules myself, based on what the data shows (a state is always in one region, an order
 always has one customer and one date). Then I gave the machine the exam again: every cleaned value matched the
