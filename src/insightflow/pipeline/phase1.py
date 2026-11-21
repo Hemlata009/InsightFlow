@@ -21,7 +21,8 @@ from insightflow import __version__
 from insightflow.audit import preserve_raw, write_run
 from insightflow.cleaning import REASONS, clean
 from insightflow.config import CONFIG_DIR, load_dataset_config
-from insightflow.hooks import PluginError, load_plugins, run_checks, run_transform
+from insightflow.audit.log import AuditLog, summarize
+from insightflow.hooks import PluginError, load_plugins, plugin_info, run_checks, run_transform
 from insightflow.ingestion import (SOURCE_ROW, FileMetadata, FileRegistry, IngestionError, IngestOptions,
                                    file_sha256, read_file)
 from insightflow.ingestion.reader import SUPPORTED
@@ -178,7 +179,10 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
         "quarantine_share": round(share, 4),
         "currency": currency_info or None,
     }
+    log = AuditLog(result["run_id"]).standardize(log)
+    quality["audit"] = summarize(log)
     metadata = _metadata(result, cfg, meta, started, str(raw_copy), config_dir)
+    metadata["plugins"] = plugin_info(pm)
     result["output_paths"] = write_run(
         data_root=data_root, dataset_id=dataset_id, domain=cfg.domain, cleaned=final,
         quarantine=quarantine, duplicates=cleaned.duplicates, quality_report=quality,

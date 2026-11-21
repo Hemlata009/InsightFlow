@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from insightflow.audit.log import AuditLog
 from insightflow.audit.writer import SOURCE_ROW_OUT, _json, to_output_frame
 from insightflow.cleaning import REASONS, clean
 from insightflow.ingestion import SOURCE_ROW, IngestionError, IngestOptions, read_file
@@ -180,9 +181,12 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
         with open(log_path, "w", encoding="utf-8") as log, open(q_path, "w", encoding="utf-8-sig", newline="") as qf:
             log.write("[\n")
             first_log = [True]
+            audit = AuditLog(result["run_id"])
+            kinds: dict[str, int] = {}
 
             def emit(entries):
-                for e in entries:
+                for e in audit.standardize(entries):
+                    kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
                     log.write(("" if first_log[0] else ",\n") + json.dumps(e, ensure_ascii=False, default=str))
                     first_log[0] = False
 
@@ -307,7 +311,8 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                   warnings=warnings, processing_mode="chunked")
     quality = {"dataset_id": cfg.dataset_id, "run_id": result["run_id"], "before": before,
                "after": {"rows": kept_rows, "missing_by_column": missing, "key_conflict_rows": conflict_rows},
-               "validation": {"summary": counts["checks"]}, "quarantine_share": round(share, 4)}
+               "validation": {"summary": counts["checks"]}, "quarantine_share": round(share, 4),
+               "audit": {"entries": sum(kinds.values()), "by_kind": dict(sorted(kinds.items()))}}
     paths = {"cleaned": str(cleaned_path), "quarantine": str(q_path),
              "duplicates": str(qdir / "duplicates_removed.csv"),
              "quality_report": str(_json(processed / "quality_report.json", quality)), "cleaning_log": str(log_path)}

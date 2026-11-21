@@ -34,6 +34,7 @@ export default function ChangeLog({ datasetId, version, row, onClearRow }: Props
           <option value="normalize">normalize</option>
           <option value="clean">clean</option>
           <option value="validate">validate</option>
+          <option value="plugin">plugin</option>
         </select>
         <input placeholder="Filter by rule / check (e.g. magnitude, derived)" value={rule} onChange={(e) => setRule(e.target.value)} />
         {row != null && (
@@ -50,7 +51,9 @@ export default function ChangeLog({ datasetId, version, row, onClearRow }: Props
         <table>
           <thead>
             <tr>
+              <th>#</th>
               <th>stage</th>
+              <th>kind</th>
               <th>row</th>
               <th>column</th>
               <th>what</th>
@@ -65,9 +68,11 @@ export default function ChangeLog({ datasetId, version, row, onClearRow }: Props
               const after = e.new ?? e.detail ?? e.severity ?? "";
               return (
                 <tr key={i}>
+                  <td className="muted small">{String(e.seq ?? "")}</td>
                   <td>
                     <span className={`stage ${e.stage}`}>{e.stage}</span>
                   </td>
+                  <td className="small">{String(e.kind ?? "")}</td>
                   <td>{e.source_row}</td>
                   <td>{String(e.column ?? "")}</td>
                   <td className="mono">{what}</td>

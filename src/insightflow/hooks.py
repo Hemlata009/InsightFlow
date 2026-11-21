@@ -80,9 +80,7 @@ def run_transform(pm: pluggy.PluginManager, hook: str, data: pd.DataFrame, cfg, 
             raise PluginError(f"plugin {name!r} {hook} must return a DataFrame or None")
         if SOURCE_ROW in data and (SOURCE_ROW not in out or list(out[SOURCE_ROW]) != list(data[SOURCE_ROW])):
             raise PluginError(f"plugin {name!r} {hook} added, dropped or reordered rows; that is not allowed")
-        changed = _count_changes(data, out)
-        log.append({"stage": "plugin", "rule": f"{name}.{hook}", "source_row": 0, "column": None,
-                    "old": None, "new": None, "detail": f"{changed} cell(s) changed"})
+        log.extend(cell_changes(data, out, f"{name}.{hook}"))
         data = out
     return data
 
@@ -102,8 +100,51 @@ def run_checks(pm: pluggy.PluginManager, data: pd.DataFrame, cfg) -> list[dict]:
     return failures
 
 
-def _count_changes(a: pd.DataFrame, b: pd.DataFrame) -> int:
-    cols = [c for c in a.columns if c in b.columns and c != SOURCE_ROW]
-    left, right = a[cols].astype("string"), b[cols].astype("string")
-    diff = ~(left.fillna("\x00").values == right.fillna("\x00").values)
-    return int(diff.sum()) + len(set(b.columns) ^ set(a.columns))
+MAX_CELL_ENTRIES = 10_000     # per plugin hook; beyond this one summary entry is written
+
+
+def cell_changes(before: pd.DataFrame, after: pd.DataFrame, rule: str) -> list[dict]:
+    """One log entry per changed cell (row, column, old, new); added/removed columns are logged too."""
+    entries = []
+    rows = before[SOURCE_ROW] if SOURCE_ROW in before else pd.Series(range(len(before)), index=before.index)
+    for col in [c for c in after.columns if c not in before.columns]:
+        entries.append({"stage": "plugin", "rule": rule, "source_row": None, "column": col, "old": None,
+                        "new": None, "detail": "column added by plugin"})
+    for col in [c for c in before.columns if c not in after.columns]:
+        entries.append({"stage": "plugin", "rule": rule, "source_row": None, "column": col, "old": None,
+                        "new": None, "detail": "column removed by plugin"})
+    total = 0
+    for col in [c for c in before.columns if c in after.columns and c != SOURCE_ROW]:
+        a, b = before[col], after[col]
+        differ = ~((a.isna() & b.isna()) | (a.astype("string") == b.astype("string")).fillna(False))
+        for i in a.index[differ.values]:
+            total += 1
+            if total <= MAX_CELL_ENTRIES:
+                entries.append({"stage": "plugin", "rule": rule, "source_row": int(rows[i]), "column": col,
+                                "old": _plain(a[i]), "new": _plain(b[i])})
+    if total > MAX_CELL_ENTRIES:
+        entries.append({"stage": "plugin", "rule": rule, "source_row": None, "column": None, "old": None, "new": None,
+                        "detail": f"{total - MAX_CELL_ENTRIES} more changed cell(s) not listed individually"})
+    return entries
+
+
+def _plain(v):
+    if v is None or (not isinstance(v, str) and pd.isna(v)):
+        return None
+    if isinstance(v, pd.Timestamp):
+        return v.isoformat(sep=" ")
+    return v.item() if hasattr(v, "item") else v
+
+
+def plugin_info(pm: pluggy.PluginManager | None) -> list[dict]:
+    """Which plugin code ran: module, file, SHA-256 of the file, version (for reproducibility)."""
+    import hashlib
+    from pathlib import Path
+
+    out = []
+    for name, module in (pm.list_name_plugin() if pm else []):
+        f = getattr(module, "__file__", None)
+        out.append({"name": name, "file": f, "version": getattr(module, "__version__", None),
+                    "sha256": hashlib.sha256(Path(f).read_bytes()).hexdigest() if f else None,
+                    "hooks": sorted(h.name for h in pm.get_hookcallers(module) or [])})
+    return out
