@@ -16,6 +16,9 @@ SAMPLE = ROOT / "data" / "sample"
 
 
 def main() -> None:
+    from . import chaos
+    ck = chaos.build(SAMPLE / "SALES_003")
+    print(f"SALES_003 (chaos): {len(ck['cases'])} cases")
     key = india.build(SAMPLE / india.DATASET_ID)
     print(f"{india.DATASET_ID}: {key['rows']} | issues {sum(key['planted_issue_counts'].values())}")
     if TARGET.exists():

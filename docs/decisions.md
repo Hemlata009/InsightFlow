@@ -53,3 +53,5 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | ISO dates are canonical: reading them is not logged as a change | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
 | 2026-11-21 | Baseline re-recorded on purpose for the new rules; tag phase1-v1.1 | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
 | 2026-11-21 | Schema drift: rule-book columns added/removed → warning; unknown extra columns → note | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
+| 2026-11-21 | Chaos test dataset SALES_003 (one problem per row, graded row by row) is part of the test suite | [19](discussions/2026-11-21_19_chaos-dataset.md) |
+| 2026-11-21 | Group filling learns only from values that pass the column's own rules (allowed values, ranges) | [19](discussions/2026-11-21_19_chaos-dataset.md) |

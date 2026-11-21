@@ -1,0 +1,1882 @@
+{
+  "dataset_id": "SALES_003",
+  "description": "Chaos file: one row per problem",
+  "cases": [
+    {
+      "id": "C01",
+      "group": "numbers",
+      "description": "rupee sign",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180
+        }
+      }
+    },
+    {
+      "id": "C02",
+      "group": "numbers",
+      "description": "Indian grouping",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180000
+        }
+      }
+    },
+    {
+      "id": "C03",
+      "group": "numbers",
+      "description": "lakh short form",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180000
+        }
+      }
+    },
+    {
+      "id": "C04",
+      "group": "numbers",
+      "description": "crore short form",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180000
+        }
+      }
+    },
+    {
+      "id": "C05",
+      "group": "numbers",
+      "description": "thousand short form",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180000
+        }
+      }
+    },
+    {
+      "id": "C06",
+      "group": "numbers",
+      "description": "accounting negative",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Profit": -1401.97
+        }
+      }
+    },
+    {
+      "id": "C07",
+      "group": "numbers",
+      "description": "unicode minus",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Profit": -20
+        }
+      }
+    },
+    {
+      "id": "C08",
+      "group": "numbers",
+      "description": "trailing minus",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Profit": -20
+        }
+      }
+    },
+    {
+      "id": "C09",
+      "group": "numbers",
+      "description": "two minus markers",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "conflicting_signs"
+      }
+    },
+    {
+      "id": "C10",
+      "group": "numbers",
+      "description": "percent",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Discount": 0.1
+        }
+      }
+    },
+    {
+      "id": "C11",
+      "group": "numbers",
+      "description": "percent with space",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Discount": 0.1
+        }
+      }
+    },
+    {
+      "id": "C12",
+      "group": "numbers",
+      "description": "discount above 80%",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "less_than_or_equal_to(0.8)"
+      }
+    },
+    {
+      "id": "C13",
+      "group": "numbers",
+      "description": "150 percent",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "less_than_or_equal_to(0.8)"
+      }
+    },
+    {
+      "id": "C14",
+      "group": "numbers",
+      "description": "Rs. prefix",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Unit_Price": 100
+        }
+      }
+    },
+    {
+      "id": "C15",
+      "group": "numbers",
+      "description": "INR code before",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Unit_Price": 100
+        }
+      }
+    },
+    {
+      "id": "C16",
+      "group": "numbers",
+      "description": "INR code after",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Unit_Price": 100
+        }
+      }
+    },
+    {
+      "id": "C17",
+      "group": "numbers",
+      "description": "dollar sign in a rupee file",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "currency_mismatch"
+      }
+    },
+    {
+      "id": "C18",
+      "group": "numbers",
+      "description": "US dollars",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "currency_mismatch"
+      }
+    },
+    {
+      "id": "C19",
+      "group": "numbers",
+      "description": "euros",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "currency_mismatch"
+      }
+    },
+    {
+      "id": "C20",
+      "group": "numbers",
+      "description": "text instead of a price",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "not_a_number"
+      }
+    },
+    {
+      "id": "C21",
+      "group": "numbers",
+      "description": "Excel error text",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "not_a_number"
+      }
+    },
+    {
+      "id": "C22",
+      "group": "numbers",
+      "description": "infinity",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "not_finite"
+      }
+    },
+    {
+      "id": "C23",
+      "group": "numbers",
+      "description": "European number style",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "bad_grouping"
+      }
+    },
+    {
+      "id": "C24",
+      "group": "numbers",
+      "description": "too many digits",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "precision_loss"
+      }
+    },
+    {
+      "id": "C25",
+      "group": "numbers",
+      "description": "fractional quantity",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "not_a_whole_number"
+      }
+    },
+    {
+      "id": "C26",
+      "group": "numbers",
+      "description": "zero quantity",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "quantity_not_zero"
+      }
+    },
+    {
+      "id": "C27",
+      "group": "numbers",
+      "description": "negative quantity, positive sales",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "return_sign_consistency"
+      }
+    },
+    {
+      "id": "C28",
+      "group": "numbers",
+      "description": "valid return",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Quantity": -2,
+          "Sales": -180,
+          "Profit": -20
+        }
+      }
+    },
+    {
+      "id": "C29",
+      "group": "numbers",
+      "description": "quantity above 1000",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "less_than_or_equal_to(1000.0)"
+      }
+    },
+    {
+      "id": "C30",
+      "group": "numbers",
+      "description": "sales doesn't match the formula",
+      "expect": {
+        "outcome": "flag",
+        "rule": "sales_formula"
+      }
+    },
+    {
+      "id": "C31",
+      "group": "blanks",
+      "description": "missing customer, same order has it (BR-3)",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Customer_ID": "C900"
+        }
+      }
+    },
+    {
+      "id": "C32",
+      "group": "blanks",
+      "description": "missing customer, nothing to copy",
+      "expect": {
+        "outcome": "flag",
+        "rule": "missing_value_no_group_value"
+      }
+    },
+    {
+      "id": "C33",
+      "group": "blanks",
+      "description": "missing region, same state known (BR-2)",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Region": "North"
+        }
+      }
+    },
+    {
+      "id": "C34",
+      "group": "blanks",
+      "description": "missing region, state seen nowhere else",
+      "expect": {
+        "outcome": "flag",
+        "rule": "missing_value_no_group_value"
+      }
+    },
+    {
+      "id": "C35",
+      "group": "blanks",
+      "description": "missing date, same order has it (BR-4)",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-07"
+        }
+      }
+    },
+    {
+      "id": "C36",
+      "group": "blanks",
+      "description": "missing date, nothing to copy",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_required:Order_Date"
+      }
+    },
+    {
+      "id": "C37",
+      "group": "blanks",
+      "description": "missing discount: derived",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Discount": 0.1
+        }
+      }
+    },
+    {
+      "id": "C38",
+      "group": "blanks",
+      "description": "missing sales: derived",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Sales": 180
+        }
+      }
+    },
+    {
+      "id": "C39",
+      "group": "blanks",
+      "description": "missing price: derived",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Unit_Price": 100
+        }
+      }
+    },
+    {
+      "id": "C40",
+      "group": "blanks",
+      "description": "two missing, can't derive",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_not_derivable"
+      }
+    },
+    {
+      "id": "C41",
+      "group": "blanks",
+      "description": "missing order id",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_required:Order_ID"
+      }
+    },
+    {
+      "id": "C42",
+      "group": "blanks",
+      "description": "product given as '?'",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_required:Product"
+      }
+    },
+    {
+      "id": "C43",
+      "group": "blanks",
+      "description": "order lines disagree on the customer (BR-5)",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "group_values_conflict:Customer_ID"
+      }
+    },
+    {
+      "id": "C44",
+      "group": "dates",
+      "description": "ISO date",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-05"
+        }
+      }
+    },
+    {
+      "id": "C45",
+      "group": "dates",
+      "description": "month name",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-05"
+        }
+      }
+    },
+    {
+      "id": "C46",
+      "group": "dates",
+      "description": "Excel date number",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-05"
+        }
+      }
+    },
+    {
+      "id": "C47",
+      "group": "dates",
+      "description": "Excel date number with time",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-05"
+        }
+      }
+    },
+    {
+      "id": "C48",
+      "group": "dates",
+      "description": "two-digit year",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2026-03-05"
+        }
+      }
+    },
+    {
+      "id": "C49",
+      "group": "dates",
+      "description": "UTC time becomes the next day in India",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-06"
+        }
+      }
+    },
+    {
+      "id": "C50",
+      "group": "dates",
+      "description": "date with time",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Order_Date": "2025-03-05"
+        }
+      }
+    },
+    {
+      "id": "C51",
+      "group": "dates",
+      "description": "ambiguous zone name",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "timezone_name_ambiguous"
+      }
+    },
+    {
+      "id": "C52",
+      "group": "dates",
+      "description": "no year",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_year"
+      }
+    },
+    {
+      "id": "C53",
+      "group": "dates",
+      "description": "no day",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "missing_day"
+      }
+    },
+    {
+      "id": "C54",
+      "group": "dates",
+      "description": "impossible date",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "unrecognised_date"
+      }
+    },
+    {
+      "id": "C55",
+      "group": "dates",
+      "description": "real leap day, but before the business range",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "order_date_in_range"
+      }
+    },
+    {
+      "id": "C56",
+      "group": "dates",
+      "description": "year 2035",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "order_date_in_range"
+      }
+    },
+    {
+      "id": "C57",
+      "group": "dates",
+      "description": "Unix timestamp (not enabled)",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "unix_timestamp_not_enabled"
+      }
+    },
+    {
+      "id": "C58",
+      "group": "dates",
+      "description": "compact date (not enabled)",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "compact_date_not_enabled"
+      }
+    },
+    {
+      "id": "C59",
+      "group": "text",
+      "description": "spaces and small letters",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Region": "North"
+        }
+      }
+    },
+    {
+      "id": "C60",
+      "group": "text",
+      "description": "capital letters",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Region": "North"
+        }
+      }
+    },
+    {
+      "id": "C61",
+      "group": "text",
+      "description": "category in small letters",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Category": "Office Supplies"
+        }
+      }
+    },
+    {
+      "id": "C62",
+      "group": "text",
+      "description": "region not allowed",
+      "expect": {
+        "outcome": "quarantine",
+        "reason": "isin"
+      }
+    },
+    {
+      "id": "C63",
+      "group": "text",
+      "description": "messy product spacing",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Product": "Pen Set"
+        }
+      }
+    },
+    {
+      "id": "C64",
+      "group": "text",
+      "description": "invisible non-breaking space",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Product": "Pen Set"
+        }
+      }
+    },
+    {
+      "id": "C65",
+      "group": "text",
+      "description": "spreadsheet formula text kept as text",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Product": "=HYPERLINK(\"http://evil.example\")"
+        }
+      }
+    },
+    {
+      "id": "C66",
+      "group": "text",
+      "description": "leading zeros kept",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Customer_ID": "007"
+        }
+      }
+    },
+    {
+      "id": "C67",
+      "group": "text",
+      "description": "line break inside a cell (quoted)",
+      "expect": {
+        "outcome": "keep",
+        "values": {
+          "Remarks": "first line\nsecond line"
+        }
+      }
+    },
+    {
+      "id": "C68",
+      "group": "duplicates",
+      "description": "exact copy",
+      "expect": {
+        "outcome": "duplicate"
+      }
+    },
+    {
+      "id": "C69",
+      "group": "duplicates",
+      "description": "copy hidden by spaces and capitals",
+      "expect": {
+        "outcome": "duplicate"
+      }
+    },
+    {
+      "id": "C70",
+      "group": "duplicates",
+      "description": "same order, different products (line items)",
+      "expect": {
+        "outcome": "keep",
+        "values": {}
+      }
+    },
+    {
+      "id": "C71",
+      "group": "duplicates",
+      "description": "same order and product, different numbers",
+      "expect": {
+        "outcome": "flag",
+        "rule": "key_conflict"
+      }
+    },
+    {
+      "id": "R1",
+      "group": "structure",
+      "description": "row with too few fields",
+      "expect": {
+        "outcome": "quarantine"
+      }
+    },
+    {
+      "id": "R2",
+      "group": "structure",
+      "description": "row with too many fields",
+      "expect": {
+        "outcome": "quarantine"
+      }
+    },
+    {
+      "id": "X1",
+      "group": "excel",
+      "description": "real Excel date cell",
+      "expect": {
+        "outcome": "keep"
+      }
+    },
+    {
+      "id": "X2",
+      "group": "excel",
+      "description": "formula saved without its result",
+      "expect": {
+        "outcome": "quarantine"
+      }
+    },
+    {
+      "id": "X3",
+      "group": "excel",
+      "description": "#DIV/0! error cell",
+      "expect": {
+        "outcome": "quarantine"
+      }
+    }
+  ],
+  "files": {
+    "chaos.csv": {
+      "header_row": 4,
+      "rows": [
+        {
+          "case": "C01",
+          "row": 5,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180
+          }
+        },
+        {
+          "case": "C02",
+          "row": 6,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C03",
+          "row": 7,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C04",
+          "row": 8,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C05",
+          "row": 9,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C06",
+          "row": 10,
+          "outcome": "keep",
+          "values": {
+            "Profit": -1401.97
+          }
+        },
+        {
+          "case": "C07",
+          "row": 11,
+          "outcome": "keep",
+          "values": {
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C08",
+          "row": 12,
+          "outcome": "keep",
+          "values": {
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C09",
+          "row": 13,
+          "outcome": "quarantine",
+          "reason": "conflicting_signs"
+        },
+        {
+          "case": "C10",
+          "row": 14,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C11",
+          "row": 16,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C12",
+          "row": 17,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(0.8)"
+        },
+        {
+          "case": "C13",
+          "row": 18,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(0.8)"
+        },
+        {
+          "case": "C14",
+          "row": 19,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C15",
+          "row": 20,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C16",
+          "row": 21,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C17",
+          "row": 22,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C18",
+          "row": 23,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C19",
+          "row": 24,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C20",
+          "row": 25,
+          "outcome": "quarantine",
+          "reason": "not_a_number"
+        },
+        {
+          "case": "C21",
+          "row": 26,
+          "outcome": "quarantine",
+          "reason": "not_a_number"
+        },
+        {
+          "case": "C22",
+          "row": 27,
+          "outcome": "quarantine",
+          "reason": "not_finite"
+        },
+        {
+          "case": "C23",
+          "row": 28,
+          "outcome": "quarantine",
+          "reason": "bad_grouping"
+        },
+        {
+          "case": "C24",
+          "row": 29,
+          "outcome": "quarantine",
+          "reason": "precision_loss"
+        },
+        {
+          "case": "C25",
+          "row": 30,
+          "outcome": "quarantine",
+          "reason": "not_a_whole_number"
+        },
+        {
+          "case": "C26",
+          "row": 31,
+          "outcome": "quarantine",
+          "reason": "quantity_not_zero"
+        },
+        {
+          "case": "C27",
+          "row": 32,
+          "outcome": "quarantine",
+          "reason": "return_sign_consistency"
+        },
+        {
+          "case": "C28",
+          "row": 33,
+          "outcome": "keep",
+          "values": {
+            "Quantity": -2,
+            "Sales": -180,
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C29",
+          "row": 34,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(1000.0)"
+        },
+        {
+          "case": "C30",
+          "row": 35,
+          "outcome": "flag",
+          "rule": "sales_formula"
+        },
+        {
+          "case": "C31",
+          "row": 36,
+          "outcome": "keep"
+        },
+        {
+          "case": "C31",
+          "row": 37,
+          "outcome": "keep",
+          "values": {
+            "Customer_ID": "C900"
+          }
+        },
+        {
+          "case": "C32",
+          "row": 38,
+          "outcome": "flag",
+          "rule": "missing_value_no_group_value"
+        },
+        {
+          "case": "C33",
+          "row": 39,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C34",
+          "row": 40,
+          "outcome": "flag",
+          "rule": "missing_value_no_group_value"
+        },
+        {
+          "case": "C35",
+          "row": 41,
+          "outcome": "keep"
+        },
+        {
+          "case": "C35",
+          "row": 42,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-07"
+          }
+        },
+        {
+          "case": "C36",
+          "row": 43,
+          "outcome": "quarantine",
+          "reason": "missing_required:Order_Date"
+        },
+        {
+          "case": "C37",
+          "row": 44,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C38",
+          "row": 45,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180
+          }
+        },
+        {
+          "case": "C39",
+          "row": 47,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C40",
+          "row": 48,
+          "outcome": "quarantine",
+          "reason": "missing_not_derivable"
+        },
+        {
+          "case": "C41",
+          "row": 49,
+          "outcome": "quarantine",
+          "reason": "missing_required:Order_ID"
+        },
+        {
+          "case": "C42",
+          "row": 50,
+          "outcome": "quarantine",
+          "reason": "missing_required:Product"
+        },
+        {
+          "case": "C43",
+          "row": 51,
+          "outcome": "keep"
+        },
+        {
+          "case": "C43",
+          "row": 52,
+          "outcome": "keep"
+        },
+        {
+          "case": "C43",
+          "row": 53,
+          "outcome": "quarantine",
+          "reason": "group_values_conflict:Customer_ID"
+        },
+        {
+          "case": "C44",
+          "row": 54,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C45",
+          "row": 55,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C46",
+          "row": 56,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C47",
+          "row": 57,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C48",
+          "row": 58,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2026-03-05"
+          }
+        },
+        {
+          "case": "C49",
+          "row": 59,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-06"
+          }
+        },
+        {
+          "case": "C50",
+          "row": 60,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C51",
+          "row": 61,
+          "outcome": "quarantine",
+          "reason": "timezone_name_ambiguous"
+        },
+        {
+          "case": "C52",
+          "row": 62,
+          "outcome": "quarantine",
+          "reason": "missing_year"
+        },
+        {
+          "case": "C53",
+          "row": 63,
+          "outcome": "quarantine",
+          "reason": "missing_day"
+        },
+        {
+          "case": "C54",
+          "row": 64,
+          "outcome": "quarantine",
+          "reason": "unrecognised_date"
+        },
+        {
+          "case": "C55",
+          "row": 65,
+          "outcome": "quarantine",
+          "reason": "order_date_in_range"
+        },
+        {
+          "case": "C56",
+          "row": 66,
+          "outcome": "quarantine",
+          "reason": "order_date_in_range"
+        },
+        {
+          "case": "C57",
+          "row": 67,
+          "outcome": "quarantine",
+          "reason": "unix_timestamp_not_enabled"
+        },
+        {
+          "case": "C58",
+          "row": 68,
+          "outcome": "quarantine",
+          "reason": "compact_date_not_enabled"
+        },
+        {
+          "case": "C59",
+          "row": 69,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C60",
+          "row": 70,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C61",
+          "row": 71,
+          "outcome": "keep",
+          "values": {
+            "Category": "Office Supplies"
+          }
+        },
+        {
+          "case": "C62",
+          "row": 72,
+          "outcome": "quarantine",
+          "reason": "isin"
+        },
+        {
+          "case": "C63",
+          "row": 73,
+          "outcome": "keep",
+          "values": {
+            "Product": "Pen Set"
+          }
+        },
+        {
+          "case": "C64",
+          "row": 74,
+          "outcome": "keep",
+          "values": {
+            "Product": "Pen Set"
+          }
+        },
+        {
+          "case": "C65",
+          "row": 75,
+          "outcome": "keep",
+          "values": {
+            "Product": "=HYPERLINK(\"http://evil.example\")"
+          }
+        },
+        {
+          "case": "C66",
+          "row": 76,
+          "outcome": "keep",
+          "values": {
+            "Customer_ID": "007"
+          }
+        },
+        {
+          "case": "C67",
+          "row": 78,
+          "outcome": "keep",
+          "values": {
+            "Remarks": "first line\nsecond line"
+          }
+        },
+        {
+          "case": "C68",
+          "row": 79,
+          "outcome": "keep"
+        },
+        {
+          "case": "C68",
+          "row": 80,
+          "outcome": "duplicate"
+        },
+        {
+          "case": "C69",
+          "row": 81,
+          "outcome": "keep"
+        },
+        {
+          "case": "C69",
+          "row": 82,
+          "outcome": "duplicate"
+        },
+        {
+          "case": "C70",
+          "row": 83,
+          "outcome": "keep"
+        },
+        {
+          "case": "C70",
+          "row": 84,
+          "outcome": "keep",
+          "values": {}
+        },
+        {
+          "case": "C71",
+          "row": 85,
+          "outcome": "flag",
+          "rule": "key_conflict"
+        },
+        {
+          "case": "C71",
+          "row": 86,
+          "outcome": "flag",
+          "rule": "key_conflict"
+        },
+        {
+          "case": "R1",
+          "row": 87,
+          "outcome": "quarantine",
+          "reason": "unreadable_row"
+        },
+        {
+          "case": "R2",
+          "row": 88,
+          "outcome": "quarantine",
+          "reason": "unreadable_row"
+        }
+      ]
+    },
+    "chaos.xlsx": {
+      "sheet": "Sales Data",
+      "header_row": 3,
+      "rows": [
+        {
+          "case": "C01",
+          "row": 4,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180
+          }
+        },
+        {
+          "case": "C02",
+          "row": 5,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C03",
+          "row": 6,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C04",
+          "row": 7,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C05",
+          "row": 8,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180000
+          }
+        },
+        {
+          "case": "C06",
+          "row": 9,
+          "outcome": "keep",
+          "values": {
+            "Profit": -1401.97
+          }
+        },
+        {
+          "case": "C07",
+          "row": 10,
+          "outcome": "keep",
+          "values": {
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C08",
+          "row": 11,
+          "outcome": "keep",
+          "values": {
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C09",
+          "row": 12,
+          "outcome": "quarantine",
+          "reason": "conflicting_signs"
+        },
+        {
+          "case": "C10",
+          "row": 13,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C11",
+          "row": 14,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C12",
+          "row": 15,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(0.8)"
+        },
+        {
+          "case": "C13",
+          "row": 16,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(0.8)"
+        },
+        {
+          "case": "C14",
+          "row": 17,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C15",
+          "row": 18,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C16",
+          "row": 19,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C17",
+          "row": 20,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C18",
+          "row": 21,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C19",
+          "row": 22,
+          "outcome": "quarantine",
+          "reason": "currency_mismatch"
+        },
+        {
+          "case": "C20",
+          "row": 23,
+          "outcome": "quarantine",
+          "reason": "not_a_number"
+        },
+        {
+          "case": "C21",
+          "row": 25,
+          "outcome": "quarantine",
+          "reason": "not_a_number"
+        },
+        {
+          "case": "C22",
+          "row": 26,
+          "outcome": "quarantine",
+          "reason": "not_finite"
+        },
+        {
+          "case": "C23",
+          "row": 27,
+          "outcome": "quarantine",
+          "reason": "bad_grouping"
+        },
+        {
+          "case": "C24",
+          "row": 28,
+          "outcome": "quarantine",
+          "reason": "precision_loss"
+        },
+        {
+          "case": "C25",
+          "row": 29,
+          "outcome": "quarantine",
+          "reason": "not_a_whole_number"
+        },
+        {
+          "case": "C26",
+          "row": 30,
+          "outcome": "quarantine",
+          "reason": "quantity_not_zero"
+        },
+        {
+          "case": "C27",
+          "row": 31,
+          "outcome": "quarantine",
+          "reason": "return_sign_consistency"
+        },
+        {
+          "case": "C28",
+          "row": 32,
+          "outcome": "keep",
+          "values": {
+            "Quantity": -2,
+            "Sales": -180,
+            "Profit": -20
+          }
+        },
+        {
+          "case": "C29",
+          "row": 33,
+          "outcome": "quarantine",
+          "reason": "less_than_or_equal_to(1000.0)"
+        },
+        {
+          "case": "C30",
+          "row": 34,
+          "outcome": "flag",
+          "rule": "sales_formula"
+        },
+        {
+          "case": "C31",
+          "row": 35,
+          "outcome": "keep"
+        },
+        {
+          "case": "C31",
+          "row": 36,
+          "outcome": "keep",
+          "values": {
+            "Customer_ID": "C900"
+          }
+        },
+        {
+          "case": "C32",
+          "row": 37,
+          "outcome": "flag",
+          "rule": "missing_value_no_group_value"
+        },
+        {
+          "case": "C33",
+          "row": 38,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C34",
+          "row": 39,
+          "outcome": "flag",
+          "rule": "missing_value_no_group_value"
+        },
+        {
+          "case": "C35",
+          "row": 40,
+          "outcome": "keep"
+        },
+        {
+          "case": "C35",
+          "row": 41,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-07"
+          }
+        },
+        {
+          "case": "C36",
+          "row": 42,
+          "outcome": "quarantine",
+          "reason": "missing_required:Order_Date"
+        },
+        {
+          "case": "C37",
+          "row": 43,
+          "outcome": "keep",
+          "values": {
+            "Discount": 0.1
+          }
+        },
+        {
+          "case": "C38",
+          "row": 44,
+          "outcome": "keep",
+          "values": {
+            "Sales": 180
+          }
+        },
+        {
+          "case": "C39",
+          "row": 45,
+          "outcome": "keep",
+          "values": {
+            "Unit_Price": 100
+          }
+        },
+        {
+          "case": "C40",
+          "row": 46,
+          "outcome": "quarantine",
+          "reason": "missing_not_derivable"
+        },
+        {
+          "case": "C41",
+          "row": 47,
+          "outcome": "quarantine",
+          "reason": "missing_required:Order_ID"
+        },
+        {
+          "case": "C42",
+          "row": 48,
+          "outcome": "quarantine",
+          "reason": "missing_required:Product"
+        },
+        {
+          "case": "C43",
+          "row": 49,
+          "outcome": "keep"
+        },
+        {
+          "case": "C43",
+          "row": 50,
+          "outcome": "keep"
+        },
+        {
+          "case": "C43",
+          "row": 51,
+          "outcome": "quarantine",
+          "reason": "group_values_conflict:Customer_ID"
+        },
+        {
+          "case": "C44",
+          "row": 52,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C45",
+          "row": 53,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C46",
+          "row": 54,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C47",
+          "row": 55,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C48",
+          "row": 56,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2026-03-05"
+          }
+        },
+        {
+          "case": "C49",
+          "row": 57,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-06"
+          }
+        },
+        {
+          "case": "C50",
+          "row": 58,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "C51",
+          "row": 59,
+          "outcome": "quarantine",
+          "reason": "timezone_name_ambiguous"
+        },
+        {
+          "case": "C52",
+          "row": 60,
+          "outcome": "quarantine",
+          "reason": "missing_year"
+        },
+        {
+          "case": "C53",
+          "row": 61,
+          "outcome": "quarantine",
+          "reason": "missing_day"
+        },
+        {
+          "case": "C54",
+          "row": 62,
+          "outcome": "quarantine",
+          "reason": "unrecognised_date"
+        },
+        {
+          "case": "C55",
+          "row": 63,
+          "outcome": "quarantine",
+          "reason": "order_date_in_range"
+        },
+        {
+          "case": "C56",
+          "row": 64,
+          "outcome": "quarantine",
+          "reason": "order_date_in_range"
+        },
+        {
+          "case": "C57",
+          "row": 65,
+          "outcome": "quarantine",
+          "reason": "unix_timestamp_not_enabled"
+        },
+        {
+          "case": "C58",
+          "row": 66,
+          "outcome": "quarantine",
+          "reason": "compact_date_not_enabled"
+        },
+        {
+          "case": "C59",
+          "row": 67,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C60",
+          "row": 68,
+          "outcome": "keep",
+          "values": {
+            "Region": "North"
+          }
+        },
+        {
+          "case": "C61",
+          "row": 69,
+          "outcome": "keep",
+          "values": {
+            "Category": "Office Supplies"
+          }
+        },
+        {
+          "case": "C62",
+          "row": 70,
+          "outcome": "quarantine",
+          "reason": "isin"
+        },
+        {
+          "case": "C63",
+          "row": 71,
+          "outcome": "keep",
+          "values": {
+            "Product": "Pen Set"
+          }
+        },
+        {
+          "case": "C64",
+          "row": 72,
+          "outcome": "keep",
+          "values": {
+            "Product": "Pen Set"
+          }
+        },
+        {
+          "case": "C65",
+          "row": 73,
+          "outcome": "quarantine",
+          "reason": "uncalculated formula"
+        },
+        {
+          "case": "C66",
+          "row": 74,
+          "outcome": "keep",
+          "values": {
+            "Customer_ID": "007"
+          }
+        },
+        {
+          "case": "C67",
+          "row": 75,
+          "outcome": "keep",
+          "values": {
+            "Remarks": "first line\nsecond line"
+          }
+        },
+        {
+          "case": "C68",
+          "row": 76,
+          "outcome": "keep"
+        },
+        {
+          "case": "C68",
+          "row": 77,
+          "outcome": "duplicate"
+        },
+        {
+          "case": "C69",
+          "row": 78,
+          "outcome": "keep"
+        },
+        {
+          "case": "C69",
+          "row": 79,
+          "outcome": "duplicate"
+        },
+        {
+          "case": "C70",
+          "row": 80,
+          "outcome": "keep"
+        },
+        {
+          "case": "C70",
+          "row": 81,
+          "outcome": "keep",
+          "values": {}
+        },
+        {
+          "case": "C71",
+          "row": 82,
+          "outcome": "flag",
+          "rule": "key_conflict"
+        },
+        {
+          "case": "C71",
+          "row": 83,
+          "outcome": "flag",
+          "rule": "key_conflict"
+        },
+        {
+          "case": "X1",
+          "row": 84,
+          "outcome": "keep",
+          "values": {
+            "Order_Date": "2025-03-05"
+          }
+        },
+        {
+          "case": "X2",
+          "row": 85,
+          "outcome": "quarantine",
+          "reason": "uncalculated formula"
+        },
+        {
+          "case": "X3",
+          "row": 86,
+          "outcome": "quarantine",
+          "reason": "not_a_number"
+        }
+      ]
+    }
+  },
+  "file_level": [
+    "title lines above the header",
+    "blank lines",
+    "header names with spaces/case/aliases",
+    "a column with no name",
+    "a duplicated column name",
+    "an extra unknown column",
+    "UTF-8 with BOM",
+    "Excel: README sheet first, hidden bigger sheet, merged title cell"
+  ]
+}

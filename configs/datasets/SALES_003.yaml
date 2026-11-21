@@ -1,0 +1,23 @@
+# Layer 3: SALES_003, the "chaos" test file. Same rules as SALES_002.
+dataset_id: SALES_003
+domain: sales
+locale: en_IN
+description: Chaos test file (India, INR) - one row per problem; same rules as SALES_002
+
+date_range: {min: "2025-01-01", max: "2026-06-30"}
+
+policies:
+  timezone: Asia/Kolkata            # Indian business: timestamps are converted to IST before taking the date
+
+columns:
+  Region:
+    allowed_values: [North, South, East, West, Central]
+  Category:
+    allowed_values: [Electronics, Furniture, Office Supplies]
+  Segment:
+    allowed_values: [Consumer, Corporate, Small Business]
+  Quantity:
+    min: -1000                      # returns allowed: negative quantity is valid
+
+business:
+  returns_allowed: true

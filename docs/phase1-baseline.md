@@ -28,12 +28,12 @@ re-running the cleaned output changes nothing; the truth file passes (only prove
 "Set aside" = exactly the rows the answer key planted as bad. Clean data = the truth file (numbers within 0.001).
 
 ## Test suite at freeze
-**449 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
+**453 tests passing**, run as 3 groups in fresh processes (`python -m harness test -q`):
 | Group | Tests | Peak RAM |
 |---|---|---|
 | tests/harness | 20 | 150 MB |
-| tests/edge_cases | 148 | 233 MB |
-| all other tests | 281 | 267 MB |
+| tests/edge_cases | 148 | 226 MB |
+| all other tests | 285 | 267 MB |
 
 ## Environment at freeze
 Windows 11, Python 3.14.4; pinned packages in `requirements.txt` (pandas 3.1.1, numpy 2.5.5, pandera 0.36.0,

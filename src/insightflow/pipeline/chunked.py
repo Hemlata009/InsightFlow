@@ -367,7 +367,7 @@ def _whole_file_group_values(run, cfg, size, spellings) -> dict:
         norm = normalize(raw, cfg, spellings=spellings)
         for col, group_by in cols.items():
             if col in norm.data and all(g in norm.data for g in group_by):
-                group_value_map(norm.data, col, group_by, into=maps[col])
+                group_value_map(norm.data, col, group_by, into=maps[col], spec=cfg.columns[col])
     return maps
 
 

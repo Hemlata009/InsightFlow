@@ -135,7 +135,7 @@ class Policies(Strict):
     max_quarantine_share: float = Field(0.2, ge=0, le=1)
     max_file_mb: float = Field(50, gt=0)
     large_files: Literal["auto", "always", "never"] = "auto"   # chunked mode (DuckDB) for files too big for RAM
-    chunk_rows: int = Field(50_000, ge=100)
+    chunk_rows: int = Field(50_000, ge=10)
     duckdb_memory_mb: int = Field(256, ge=64)
     max_chunked_file_mb: float = Field(5_000, gt=0)
 

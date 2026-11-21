@@ -69,7 +69,7 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True,
             actions += [_act("fill_value", r, col, None, spec.fill_value) for r in rows]
         elif policy == "fill_from_group":
             a, f, bad_rows = _fill_from_group(df, col, spec.group_by, missing,
-                                              (group_values or {}).get(col))
+                                              (group_values or {}).get(col), spec)
             actions += a
             quarantine(bad_rows, f"group_values_conflict:{col}")
             if spec.nullable:
@@ -137,11 +137,14 @@ def group_keys(df: pd.DataFrame, group_by: list[str]) -> pd.Series:
     return keys.fillna("").agg("|".join, axis=1).where(~no_key)
 
 
-def group_value_map(df: pd.DataFrame, col: str, group_by: list[str], into: dict | None = None) -> dict:
-    """{group key: the value its rows agree on | CONFLICT}; can be updated piece by piece."""
+def group_value_map(df: pd.DataFrame, col: str, group_by: list[str], into: dict | None = None,
+                    spec=None) -> dict:
+    """{group key: the value its rows agree on | CONFLICT}; can be updated piece by piece.
+    Values that break the column's own rules (not an allowed value, out of range) don't count: one typo
+    like Region "Mars" must not block filling for a whole state."""
     out = {} if into is None else into
     keys = group_keys(df, group_by)
-    known = df[col].notna() & keys.notna()
+    known = df[col].notna() & keys.notna() & _valid_for(df[col], spec)
     for k, v in zip(keys[known], df.loc[known, col]):
         prev = out.get(k, None)
         if prev is None:
@@ -151,12 +154,25 @@ def group_value_map(df: pd.DataFrame, col: str, group_by: list[str], into: dict 
     return out
 
 
-def _fill_from_group(df, col, group_by, missing, whole_file: dict | None = None):
+def _valid_for(values: pd.Series, spec) -> pd.Series:
+    ok = pd.Series(True, index=values.index)
+    if spec is None:
+        return ok
+    if spec.allowed_values:
+        ok &= values.isin(spec.allowed_values).fillna(False).astype(bool)
+    if spec.min is not None:
+        ok &= (values >= spec.min).fillna(False).astype(bool)
+    if spec.max is not None:
+        ok &= (values <= spec.max).fillna(False).astype(bool)
+    return ok
+
+
+def _fill_from_group(df, col, group_by, missing, whole_file: dict | None = None, spec=None):
     """Copy a value from other rows of the same group (e.g. the same order), only if they all agree.
     Never crosses into another group. Conflicting groups are quarantined; empty groups are flagged."""
     actions, flags, conflicts = [], [], []
     row_keys = group_keys(df, group_by)
-    stats = whole_file if whole_file is not None else group_value_map(df, col, group_by)
+    stats = whole_file if whole_file is not None else group_value_map(df, col, group_by, spec=spec)
     for i in df.index[missing]:
         k = row_keys[i]
         if pd.isna(k) or k not in stats:

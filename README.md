@@ -6,7 +6,7 @@ InsightFlow is planned as an MCP-based analytics product. It will ingest busines
 compute KPIs, detect trends and anomalies, investigate root causes, forecast, and deliver reports. Users
 will reach it through AI assistants (Claude, ChatGPT), a **React web UI**, and scheduled emails.
 
-- First domain: **Sales analytics** (two sample datasets: India / INR and US / USD)
+- First domain: **Sales analytics** (sample datasets: India / INR, US / USD, and a "chaos" file with one problem per row)
 - Design: a **domain-agnostic core** plus **pluggable domain configs** (`configs/`), so new domains can be added
 
 > Repository: **private** (github.com/Hemlata009/InsightFlow). GitHub Actions is **disabled**; all tests run
@@ -15,8 +15,9 @@ will reach it through AI assistants (Claude, ChatGPT), a **React web UI**, and s
 ## Status
 
 **Phase 1 complete and frozen** (tag `phase1-v1.1`): data intake & quality engine.
-**449 tests passing** (`python -m harness test -q`: 3 groups, 20 + 148 + 281). Truth check:
-`python -m harness run -- python -m scripts.check_against_truth SALES_002`. Verified baseline in
+**453 tests passing** (`python -m harness test -q`: 3 groups). Truth check:
+`python -m harness run -- python -m scripts.check_against_truth SALES_002`. Chaos check (every problem in one
+file, graded row by row): `python -m harness run -- python -m scripts.check_chaos --chunked`. Verified baseline in
 [docs/phase1-baseline.md](docs/phase1-baseline.md). Next: Phase 2 (analytics & KPIs).
 
 Phase 1 covers: CSV / TSV / TXT / Excel / JSON / JSON Lines / Parquet / XML / fixed-width files → profiling →
