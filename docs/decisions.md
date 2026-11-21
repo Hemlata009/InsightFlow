@@ -38,3 +38,7 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Zoned times are converted to the dataset's business time zone (SALES_002: Asia/Kolkata); Unix/compact dates are opt-in | [13](discussions/2026-11-21_13_edge-cases.md) |
 | 2026-11-21 | fill_from_group and impute are available but OFF for sales until the user decides | [13](discussions/2026-11-21_13_edge-cases.md) |
 | 2026-11-21 | Outputs are UTF-8 with BOM (Excel-friendly); formula-like cells are reported, not altered | [13](discussions/2026-11-21_13_edge-cases.md) |
+| 2026-11-21 | Large files: chunked mode (stream + DuckDB on disk), automatic above max_file_mb or when RAM is short; results must equal in-memory | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
+| 2026-11-21 | Currency conversion via CurrencyConverter + ECB rates, opt-in (foreign amounts at row date; reporting columns) | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
+| 2026-11-21 | pycel rejected (GPL-3.0); uncalculated formulas are detected and set aside instead | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |
+| 2026-11-21 | Add-on steps via pluggy; plugins may change values but never add/drop rows | [14](discussions/2026-11-21_14_existing-tools-for-gaps.md) |

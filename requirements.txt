@@ -1,9 +1,13 @@
+CurrencyConverter==0.18.23
+defusedxml==0.7.1
+duckdb==2.0.1
 fastapi==0.165.0
 httpx==0.28.1
 numpy==2.5.5
 openpyxl==3.1.5
 pandas==3.1.1
 pandera==0.36.0
+pluggy==1.7.0
 psutil==7.2.2
 pyarrow==26.0.1
 pydantic==2.14.4

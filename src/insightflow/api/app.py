@@ -118,7 +118,10 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
     def run(dataset_id: str = Form(...), sample: str | None = Form(None),
             file: UploadFile | None = File(None)):
         cfg = cfg_or_404(dataset_id)
-        path = resolve_input(dataset_id, sample, file, cfg.policies.max_file_mb)
+        # big CSV/JSONL/Parquet files are processed in chunked mode, so they may be larger
+        streamable = file is not None and Path(file.filename or "").suffix.lower() in (".csv", ".tsv", ".txt", ".jsonl", ".ndjson", ".parquet")
+        limit = cfg.policies.max_chunked_file_mb if streamable else cfg.policies.max_file_mb
+        path = resolve_input(dataset_id, sample, file, limit)
         if not _run_lock.acquire(timeout=1):
             raise HTTPException(409, "a pipeline run is already in progress; try again shortly")
         try:

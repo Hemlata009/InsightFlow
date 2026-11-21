@@ -96,7 +96,13 @@ Agreed 2026-11-21. Based on the full proposal in
 - [x] Fill from same group (never across groups) · guarded median/mean/mode imputation · zero vs unknown · booleans
 - [x] Schema drift between file versions · formula-injection cells reported · Excel-friendly output encoding
 
-## Still deferred
-Chunked processing of files larger than free RAM (refused for now) · currency conversion · uncalculated
-Excel formulas · merged cells / two-row headers · fixed-width / XML · hook registry ·
-tools: Frictionless · dateparser · PyJanitor · ydata-profiling · Great Expectations · DuckDB · Babel
+## Gaps closed with existing tools (2026-11-21, see discussion 14)
+- [x] Files bigger than free RAM → chunked mode (DuckDB + streamed pieces), identical results
+- [x] Currency conversion → CurrencyConverter + ECB rates (opt-in), reporting-currency columns
+- [x] XML (defusedxml) · fixed-width (pandas.read_fwf) · merged cells + two-row headers (openpyxl)
+- [x] Uncalculated Excel formulas → detected and set aside (pycel rejected: GPL-3.0)
+- [x] Add-on steps (pluggy) with row-safety rules
+
+## Still not covered
+Recalculating Excel formulas ourselves (needs a GPL library or LibreOffice) · Excel files bigger than RAM
+(save as CSV/Parquet) · plugins and fill_from_group/impute in chunked mode

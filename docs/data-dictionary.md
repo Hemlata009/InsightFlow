@@ -52,7 +52,7 @@ are matched to the allowed value, or to the most common spelling (`" north "` �
 | 9 | Sales formula | Sales ≈ Quantity × Unit_Price × (1 − Discount) within ₹/$0.01 or 0.1% → otherwise flag |
 | 10 | Dates outside range? | Quarantine (e.g. a 2035 date) |
 | 11 | Ambiguous dates (01/02/2026)? | Read with the dataset locale (DMY for India, MDY for US); never guess |
-| 12 | Currency conversion? | **Never** in Phase 1. Amounts stay in the dataset currency |
+| 12 | Currency conversion? | **Off by default.** Opt-in: `currency.foreign_amounts: convert` (at the row's date, ECB rates) and/or `currency.reporting_currency: USD` (adds `Sales_USD` etc.). Bare `$` in a non-dollar dataset is always refused |
 | 13 | Too many bad rows? | If more than 20% are quarantined → run status `needs_review` |
 
 ## Locales
@@ -78,3 +78,13 @@ Messy headers are matched after normalizing (lower-case; non-letters/digits → 
 | `missing_policy: fill_from_group` + `group_by` | column | Copy the value the other rows of the same group agree on (e.g. the same order) |
 | `missing_policy: impute` + `impute_method` | column | median / mean / mode; mean refused when \|skew\| > `max_skew_for_mean` |
 | locale `de_DE` | dataset | € EUR, `1.234,56`, DD.MM.YYYY, K/Tsd/Mio/Mrd |
+
+## Large files, plugins, currency (added 2026-11-21)
+| Setting | Meaning |
+|---|---|
+| `policies.large_files` | `auto` (default): files too big for RAM are processed in pieces with DuckDB · `always` · `never` |
+| `policies.chunk_rows` / `duckdb_memory_mb` / `max_chunked_file_mb` | 20,000 rows · 128 MB · 5,000 MB |
+| `currency.foreign_amounts` | `refuse` (default) / `convert` |
+| `currency.reporting_currency` + `rate_date_column` | e.g. `USD` + `Order_Date` |
+| column `money: true` | Unit_Price, Sales, Profit (amounts that can be converted) |
+| `plugins: [plugins.sales_sanity]` | add-on modules in `plugins/` (pluggy) |
