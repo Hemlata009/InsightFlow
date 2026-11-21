@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Generated pipeline outputs
+data/processed/
+data/quarantine/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
