@@ -136,3 +136,31 @@ def test_status_survives_characters_the_console_cannot_print():
                          env={**__import__("os").environ, "PYTHONIOENCODING": "cp1252"})
     assert out.returncode in (0, 2), out.stderr.decode("cp1252", "replace")[-300:]
     assert b"InsightFlow development status" in out.stdout
+
+
+def test_watchdog_survives_windows_memory_errors(tmp_path, monkeypatch):
+    """WinError 1455 ("paging file too small") from psutil must not crash the guard."""
+    import psutil
+
+    import harness.runner as runner
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    real_children = psutil.Process.children
+
+    def flaky_children(self, recursive=False):
+        raise OSError(1455, "The paging file is too small for this operation to complete")
+    monkeypatch.setattr(psutil.Process, "children", flaky_children)
+    res = runner.run_guarded([sys.executable, "-c", "import time; time.sleep(0.6)"], cfg=cfg)
+    monkeypatch.setattr(psutil.Process, "children", real_children)
+    assert res.outcome == "passed"
+
+
+def test_unreadable_memory_counts_as_no_free_memory(monkeypatch):
+    import psutil
+
+    from harness.resources import Snapshot
+
+    def broken():
+        raise OSError(1455, "paging file too small")
+    monkeypatch.setattr(psutil, "virtual_memory", broken)
+    s = Snapshot.take(0.0)
+    assert s.available_mb == 0 and evaluate(s, CFG).level == BLOCK

@@ -24,3 +24,11 @@ runner:
 
 paths:
   db: .local/harness.db       # SQLite run history (ignored by git)
+
+tests:
+  # A full `harness test` runs these groups one after another, each in a FRESH process, so memory held by
+  # one group (pandas, pyarrow, DuckDB) is given back before the next starts. Peak RAM stays lower.
+  groups:
+    - [tests/harness]
+    - [tests/edge_cases]
+    - [tests, --ignore=tests/harness, --ignore=tests/edge_cases]

@@ -44,8 +44,26 @@ def _report(res) -> int:
 
 
 def cmd_test(args) -> int:
-    cmd = [sys.executable, "-m", "pytest", *args.rest]
-    return _report(run_guarded(cmd, force=args.force, timeout=args.timeout))
+    names_paths = [a for a in args.rest if not a.startswith("-")]
+    groups = load_config().get("tests", {}).get("groups") or []
+    if names_paths or not groups:              # specific tests: one run, as asked
+        cmd = [sys.executable, "-m", "pytest", *args.rest]
+        return _report(run_guarded(cmd, force=args.force, timeout=args.timeout))
+    worst, results = 0, []
+    for g in groups:                           # full suite: fresh process per group (lower peak RAM)
+        print(f"[harness] test group: {' '.join(g)}")
+        res = run_guarded([sys.executable, "-m", "pytest", *args.rest, *g], force=args.force, timeout=args.timeout)
+        code = _report(res)
+        results.append((" ".join(g), res))
+        worst = max(worst, code)
+        if res.outcome in ("blocked", "killed_memory"):
+            break                              # the PC is short of memory: don't start the next group
+    print()
+    print("[harness] summary:")
+    for name, res in results:
+        print(f"[harness]   {res.outcome.upper():<14} {res.duration_s:>6}s  peak={res.peak_task_mb} MB  "
+              f"min_free={res.min_free_mb} MB  {name}")
+    return worst
 
 
 def cmd_run(args) -> int:

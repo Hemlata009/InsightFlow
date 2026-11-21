@@ -34,24 +34,35 @@ def _tree_rss_mb(proc: psutil.Process) -> int:
         for p in [proc, *proc.children(recursive=True)]:
             try:
                 total += p.memory_info().rss
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+            except (psutil.Error, OSError):
                 pass
-    except psutil.NoSuchProcess:
+    except (psutil.Error, OSError):      # e.g. WinError 1455 "paging file too small" under memory pressure
         pass
     return total // 2**20
+
+
+def _free_mb() -> int:
+    """Free RAM in MB; 0 if Windows can't even answer (that itself means memory is critically short)."""
+    try:
+        return psutil.virtual_memory().available // 2**20
+    except (psutil.Error, OSError):
+        return 0
 
 
 def _kill_tree(proc: psutil.Process) -> None:
     try:
         procs = [*proc.children(recursive=True), proc]
-    except psutil.NoSuchProcess:
-        return
+    except (psutil.Error, OSError):
+        procs = [proc]
     for p in procs:
         try:
             p.kill()
-        except psutil.NoSuchProcess:
+        except (psutil.Error, OSError):
             pass
-    psutil.wait_procs(procs, timeout=5)
+    try:
+        psutil.wait_procs(procs, timeout=5)
+    except (psutil.Error, OSError):
+        pass
 
 
 def resolve_command(cmd: list[str]) -> list[str]:
@@ -122,7 +133,7 @@ def run_guarded(
     code = popen.wait()
     if outcome is None:
         outcome = "passed" if code == 0 else "failed"
-    min_free = min(min_free, psutil.virtual_memory().available // 2**20)
+    min_free = min(min_free, _free_mb())
     res = RunResult(outcome, code, round(time.monotonic() - start, 2), peak, min_free, verdict, note)
     _save(db_path, cmd, res, record_history)
     return res
@@ -133,7 +144,7 @@ def _watch(popen, proc, m, r, start, timeout, max_task_mb):
     low_since = None
     while popen.poll() is None:
         used = _tree_rss_mb(proc)
-        free = psutil.virtual_memory().available // 2**20
+        free = _free_mb()
         peak, min_free = max(peak, used), min(min_free, free)
         if used > max_task_mb:
             outcome, note = "killed_memory", f"task used {used} MB > limit {max_task_mb} MB"

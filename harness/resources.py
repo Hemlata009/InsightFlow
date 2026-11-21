@@ -28,14 +28,21 @@ class Snapshot:
 
     @classmethod
     def take(cls, cpu_interval: float = 0.5) -> "Snapshot":
-        mem = psutil.virtual_memory()
-        disk = psutil.disk_usage(str(ROOT))
-        return cls(
-            total_mb=mem.total // 2**20,
-            available_mb=mem.available // 2**20,
-            cpu_percent=psutil.cpu_percent(interval=cpu_interval),
-            disk_free_mb=disk.free // 2**20,
-        )
+        """If Windows can't report (e.g. WinError 1455 under memory pressure), assume the worst: 0 free."""
+        try:
+            mem = psutil.virtual_memory()
+            total, available = mem.total // 2**20, mem.available // 2**20
+        except (psutil.Error, OSError):
+            total, available = 0, 0
+        try:
+            disk_free = psutil.disk_usage(str(ROOT)).free // 2**20
+        except (psutil.Error, OSError):
+            disk_free = 0
+        try:
+            cpu = psutil.cpu_percent(interval=cpu_interval)
+        except (psutil.Error, OSError):
+            cpu = 100.0
+        return cls(total_mb=total, available_mb=available, cpu_percent=cpu, disk_free_mb=disk_free)
 
 
 @dataclass

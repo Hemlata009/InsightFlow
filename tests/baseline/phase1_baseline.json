@@ -1,0 +1,111 @@
+{
+  "description": "Phase 1 verified baseline (frozen 2026-11-21, tag phase1-v1.0)",
+  "cases": {
+    "SALES_002/sales_messy.csv": {
+      "input_sha256": "bfeb0d5bc4b2b5b40157e2a92b618e2d3d355ef5c0c92f18534362adc95b5162",
+      "result": {
+        "status": "completed_with_warnings",
+        "rows_input": 1013,
+        "rows_output": 989,
+        "rows_quarantined": 16,
+        "rows_duplicates_removed": 8,
+        "rows_flagged": 8,
+        "transformations_applied": {
+          "date:date_format:%Y-%m-%d": 4,
+          "date:date_format:%d-%b-%y": 4,
+          "date:excel_serial": 4,
+          "derived": 4,
+          "duplicate_removed": 8,
+          "null_marker": 8,
+          "number:accounting_negative+grouping_removed": 4,
+          "number:currency_removed+grouping_removed": 4,
+          "number:magnitude_suffix": 4,
+          "number:percent": 4,
+          "text_standardized": 16
+        },
+        "validation_errors": [
+          "schema:less_than_or_equal_to(0.8): 4 row(s) [quarantine]",
+          "rule:return_sign_consistency: 4 row(s) [quarantine]",
+          "rule:order_date_in_range: 4 row(s) [quarantine]"
+        ],
+        "processing_mode": "in_memory"
+      },
+      "outputs_sha256": {
+        "cleaned": "06a405948f4ba9bef412f90fa7e71fc9ab70584754619c93236d561392b29f5b",
+        "quarantine": "0305ae77ab129dcce57872eb54c47478a642ed33dbfa8ca4ce0611c5b4501cb0",
+        "duplicates": "cfffea030eb292ad8c1dd3bf638f28484dac7469a72b779e65e4329d6f6a5611"
+      }
+    },
+    "SALES_002/sales_messy.xlsx": {
+      "input_sha256": "2a8169171fb3e5547adf2f2a3185d3dda67e4be4c053333560b50a094c8160ce",
+      "result": {
+        "status": "completed_with_warnings",
+        "rows_input": 1013,
+        "rows_output": 989,
+        "rows_quarantined": 16,
+        "rows_duplicates_removed": 8,
+        "rows_flagged": 8,
+        "transformations_applied": {
+          "date:date_format:%Y-%m-%d": 4,
+          "date:date_format:%d-%b-%y": 4,
+          "date:excel_serial": 4,
+          "derived": 4,
+          "duplicate_removed": 8,
+          "null_marker": 8,
+          "number:accounting_negative+grouping_removed": 4,
+          "number:currency_removed+grouping_removed": 4,
+          "number:magnitude_suffix": 4,
+          "number:percent": 4,
+          "text_standardized": 16
+        },
+        "validation_errors": [
+          "schema:less_than_or_equal_to(0.8): 4 row(s) [quarantine]",
+          "rule:return_sign_consistency: 4 row(s) [quarantine]",
+          "rule:order_date_in_range: 4 row(s) [quarantine]"
+        ],
+        "processing_mode": "in_memory"
+      },
+      "outputs_sha256": {
+        "cleaned": "b5e18f903d4c750ab0b0f970dfd3f767872bf5e2f84c92743efa6bf2a9a4cdd5",
+        "quarantine": "af3f7394df938f6cde97ad17ef26c36eb47f4425d42f6c66b8bbd0103be66866",
+        "duplicates": "fe17e4adf375afedf182b16de1b51a1abb6296e212fd72aeea5c6366e5536a49"
+      }
+    },
+    "SALES_001/sales_messy.csv": {
+      "input_sha256": "f06e79365dd10f97e376658fb544e6180d6d209a643af91b14b7932d0b95a483",
+      "result": {
+        "status": "completed_with_warnings",
+        "rows_input": 10074,
+        "rows_output": 9833,
+        "rows_quarantined": 160,
+        "rows_duplicates_removed": 81,
+        "rows_flagged": 92,
+        "transformations_applied": {
+          "date:date_format:%Y-%m-%d": 40,
+          "date:date_format:%d-%b-%y": 40,
+          "date:excel_serial": 40,
+          "derived": 40,
+          "duplicate_removed": 81,
+          "null_marker": 96,
+          "number:accounting_negative": 40,
+          "number:currency_removed+grouping_removed": 40,
+          "number:magnitude_suffix": 40,
+          "number:percent": 40,
+          "text_standardized": 433
+        },
+        "validation_errors": [
+          "schema:greater_than_or_equal_to(1.0): 40 row(s) [quarantine]",
+          "schema:less_than_or_equal_to(0.8): 40 row(s) [quarantine]",
+          "rule:return_sign_consistency: 40 row(s) [quarantine]",
+          "rule:order_date_in_range: 40 row(s) [quarantine]"
+        ],
+        "processing_mode": "in_memory"
+      },
+      "outputs_sha256": {
+        "cleaned": "d51edc422c578701d2135f234579793958304433e1f69c362ab3a79e59452bb0",
+        "quarantine": "7d10a95a17305803b46d5f1ffb2798da9159348c1bd0704c29722dc9e7f47954",
+        "duplicates": "b176a9f261ddb8b19b15086800f7bb768fb9d9ab62593934446ef8c0796c53b3"
+      }
+    }
+  }
+}
