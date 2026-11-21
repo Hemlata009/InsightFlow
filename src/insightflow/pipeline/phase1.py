@@ -21,6 +21,7 @@ from insightflow import __version__
 from insightflow.audit import preserve_raw, write_run
 from insightflow.cleaning import REASONS, clean
 from insightflow.config import CONFIG_DIR, load_dataset_config
+from insightflow.hooks import PluginError, load_plugins, run_checks, run_transform
 from insightflow.ingestion import SOURCE_ROW, FileRegistry, IngestionError, IngestOptions, read_file
 from insightflow.normalization import normalize
 from insightflow.profiling import profile
@@ -38,10 +39,21 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
               "source_file": str(input_path), "source_format": input_path.suffix.lstrip(".").lower(),
               "rows_input": 0, "rows_output": 0, "rows_quarantined": 0, "rows_duplicates_removed": 0,
               "rows_flagged": 0, "transformations_applied": {}, "validation_errors": [], "warnings": [],
-              "schema_changes": {},
+              "schema_changes": {}, "plugins": [],
               "error": None, "output_paths": {}}
 
     cfg = load_dataset_config(dataset_id, config_dir)
+    result["plugins"] = list(cfg.plugins)
+    try:
+        return _run(result, input_path, dataset_id, cfg, data_root, config_dir, started)
+    except PluginError as e:
+        result["error"] = {"code": "plugin_error", "message": str(e)}
+        return _finish_failed(result, data_root, started)
+
+
+def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) -> dict:
+    pm = load_plugins(cfg.plugins) if cfg.plugins else None
+    plugin_log: list[dict] = []
     try:
         raw = read_file(input_path, known_headers=set(cfg.header_map()),
                         options=IngestOptions(max_file_mb=cfg.policies.max_file_mb))
@@ -51,6 +63,9 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
 
     meta = raw.metadata
     warnings = list(raw.warnings)
+    original_text = raw.data                                   # kept for the quarantine file
+    if pm:
+        raw.data = run_transform(pm, "after_ingest", raw.data, cfg, plugin_log)
     result["rows_input"] = meta.rows + len(raw.bad_rows)
 
     # repeated upload + untouched raw copy
@@ -71,6 +86,8 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
     before = profile(raw.data, cfg, meta)
     norm = normalize(raw.data, cfg)
     warnings += norm.warnings
+    if pm:
+        norm.data = run_transform(pm, "after_normalize", norm.data, cfg, plugin_log)
     if norm.missing_required:
         result["error"] = {"code": "missing_required_columns",
                            "message": f"required column(s) not found: {norm.missing_required}"}
@@ -78,8 +95,12 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
         return _finish_failed(result, data_root, started, meta)
 
     cleaned = clean(norm, cfg)
+    if pm:
+        cleaned.data = run_transform(pm, "after_clean", cleaned.data, cfg, plugin_log)
     from insightflow.validation import validate      # imported here: pandera is the slowest import
     val = validate(cleaned.data, cfg)
+    if pm:
+        val.failures += run_checks(pm, cleaned.data, cfg)
     if val.structural_errors:
         result["error"] = {"code": "schema_error", "message": "; ".join(val.structural_errors)}
         result["validation_errors"] = val.structural_errors
@@ -97,7 +118,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
     for b in raw.bad_rows:
         q_reasons[b["source_row"]] = f"unreadable_row:{b['reason']}"
 
-    raw_by_row = raw.data.set_index(SOURCE_ROW)
+    raw_by_row = original_text.set_index(SOURCE_ROW)
     q_rows = sorted(q_reasons)
     quarantine = raw_by_row.reindex(q_rows).reset_index()          # ORIGINAL text, for a human to fix
     for b in raw.bad_rows:
@@ -117,7 +138,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
     effective = [f for f in val.failures if f["severity"] == "quarantine" or f["source_row"] in kept]
     flags = [f for f in cleaned.flags + [f for f in val.failures if f["severity"] == "flag"]
              if f["source_row"] in kept]
-    log = norm.changes + norm.issues + cleaned.actions + flags + \
+    log = plugin_log + norm.changes + norm.issues + cleaned.actions + flags + \
         [f for f in val.failures if f["severity"] == "quarantine"]
     transformations = _count(norm.changes + cleaned.actions, "rule")
 
@@ -136,7 +157,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
         raise RuntimeError("row accounting mismatch: rows were lost or double-counted")
 
     quality = {
-        "dataset_id": dataset_id, "run_id": run_id,
+        "dataset_id": dataset_id, "run_id": result["run_id"],
         "before": before,
         "after": {"rows": len(final),
                   "missing_by_column": {c: int(final[c].isna().sum()) for c in final.columns if c != SOURCE_ROW},

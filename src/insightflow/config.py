@@ -182,6 +182,7 @@ class DatasetConfig(Strict):
     rules: dict[str, RuleSpec]
     business: Business = Field(default_factory=Business)
     currency: CurrencyPolicy = Field(default_factory=CurrencyPolicy)
+    plugins: list[str] = Field(default_factory=list)    # add-on modules, e.g. ["plugins.sales_sanity"]
 
     @model_validator(mode="after")
     def _check(self):
@@ -200,6 +201,9 @@ class DatasetConfig(Strict):
         for col, spec in self.columns.items():
             if set(spec.group_by) - names or col in spec.group_by:
                 raise ValueError(f"{col}: group_by must list other existing columns")
+        for name in self.plugins:
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*", name):
+                raise ValueError(f"invalid plugin module name {name!r}")
         c = self.currency
         if c.foreign_amounts == "convert" or c.reporting_currency:
             col = c.rate_date_column
