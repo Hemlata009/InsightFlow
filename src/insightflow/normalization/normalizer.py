@@ -203,7 +203,11 @@ def _numbers(text, spec, cfg, rows, col, res) -> pd.Series:
 
 def _dates(text, cfg, rows, col, res, keep_time: bool = False) -> pd.Series:
     dates, rule, reason = parse_dates(text, cfg, keep_time=keep_time)
-    quiet = {"locale_format", "locale_datetime", "iso_datetime"} if keep_time else {"locale_format"}
+    # Not logged as changes: the locale's own format, and ISO dates (our canonical output: unambiguous, so
+    # re-reading a cleaned file changes nothing). Mixed date styles still show up in the health check.
+    quiet = {"locale_format", "date_format:%Y-%m-%d"}
+    if keep_time:
+        quiet |= {"locale_datetime", "iso_datetime"}
     logged = rule.notna() & ~rule.isin(quiet)
     for i in text[logged].index:
         res.changes.append(_chg(f"date:{rule[i]}", rows[i], col, text[i], dates[i]))

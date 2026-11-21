@@ -48,3 +48,7 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Standard audit-log entry (seq, run_id, kind, stage, rule, source_row, column, old, new, severity, detail); plugin changes per cell; plugin file SHA-256 in metadata | [17](discussions/2026-11-21_17_review-priorities.md) |
 | 2026-11-21 | Phase 1 frozen: baseline of results + output SHA-256 must be reproduced; tag phase1-v1.0 | [17](discussions/2026-11-21_17_review-priorities.md) |
 | 2026-11-21 | Full test runs are split into 3 fresh-process groups (the PC fell to 15 MB free during one combined run) | [17](discussions/2026-11-21_17_review-priorities.md) |
+| 2026-11-21 | InsightFlow set business rules BR-1..9 (user has none yet): Region from State, Customer/Order_Date from the same order, never guess on disagreement | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
+| 2026-11-21 | Run messages split into notes (information) and warnings (act on it); only warnings/set-aside/flags affect the status | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
+| 2026-11-21 | ISO dates are canonical: reading them is not logged as a change | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |
+| 2026-11-21 | Baseline re-recorded on purpose for the new rules; tag phase1-v1.1 | [18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md) |

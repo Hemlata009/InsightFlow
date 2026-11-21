@@ -27,6 +27,7 @@ from insightflow.ingestion import (SOURCE_ROW, FileMetadata, FileRegistry, Inges
                                    file_sha256, read_file)
 from insightflow.ingestion.reader import SUPPORTED
 from insightflow.pipeline.chunked import STREAMABLE, run_chunked
+from insightflow.pipeline.messages import split_messages
 from insightflow.normalization import normalize
 from insightflow.profiling import profile
 
@@ -43,7 +44,7 @@ def run_phase1(input_path: str | Path, dataset_id: str, *, data_root: Path = DAT
               "source_file": str(input_path), "source_format": input_path.suffix.lstrip(".").lower(),
               "rows_input": 0, "rows_output": 0, "rows_quarantined": 0, "rows_duplicates_removed": 0,
               "rows_flagged": 0, "transformations_applied": {}, "validation_errors": [], "warnings": [],
-              "schema_changes": {}, "plugins": [], "processing_mode": None,
+              "notes": [], "schema_changes": {}, "plugins": [], "processing_mode": None,
               "error": None, "output_paths": {}}
 
     cfg = load_dataset_config(dataset_id, config_dir)
@@ -155,6 +156,7 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
 
     n_in = result["rows_input"]
     share = len(quarantine) / n_in if n_in else 0.0
+    notes, warnings = split_messages(warnings)          # information never changes the status
     status = ("needs_review" if share > cfg.policies.max_quarantine_share else
               "completed_with_warnings" if (len(quarantine) or flags or warnings) else "completed")
     result.update(
@@ -162,7 +164,7 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
         rows_duplicates_removed=len(cleaned.duplicates), rows_flagged=len({f["source_row"] for f in flags}),
         transformations_applied=transformations,
         validation_errors=[f"{k}: {v['rows']} row(s) [{v['severity']}]" for k, v in _summary(effective).items()],
-        warnings=warnings,
+        warnings=warnings, notes=notes,
     )
     if len(final) + len(quarantine) + len(cleaned.duplicates) != n_in:     # every row must be accounted for
         raise RuntimeError("row accounting mismatch: rows were lost or double-counted")
@@ -208,7 +210,7 @@ def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, r
         meta.path, meta.file_name, meta.format = str(input_path), input_path.name, fmt
         is_new, entry = FileRegistry(data_root / "raw" / "_registry.json").register(meta, cfg.dataset_id)
         if not is_new:
-            res["warnings"].append(f"this exact file was processed before (first seen {entry['first_seen']})")
+            res["notes"].append(f"this exact file was processed before (first seen {entry['first_seen']})")
         raw_copy = preserve_raw(input_path, data_root / "raw", cfg.dataset_id, sha)
         if prev_columns_meta:
             tmp = data_root / "processed" / cfg.dataset_id / ".prev_metadata.json"
@@ -330,6 +332,8 @@ def describe(result: dict) -> str:
         lines.append("  changes: " + ", ".join(f"{k}={v}" for k, v in result["transformations_applied"].items()))
     for v in result["validation_errors"]:
         lines.append(f"  check  : {v}")
+    for n in result.get("notes", []):
+        lines.append(f"  note   : {n}")
     for w in result["warnings"]:
         lines.append(f"  warning: {w}")
     for k, p in result["output_paths"].items():

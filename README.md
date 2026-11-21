@@ -14,8 +14,9 @@ will reach it through AI assistants (Claude, ChatGPT), a **React web UI**, and s
 
 ## Status
 
-**Phase 1 complete and frozen** (tag `phase1-v1.0`): data intake & quality engine.
-**442 tests passing** (`python -m harness test -q`: 3 groups, 20 + 145 + 277). Verified baseline in
+**Phase 1 complete and frozen** (tag `phase1-v1.1`): data intake & quality engine.
+**447 tests passing** (`python -m harness test -q`: 3 groups, 20 + 146 + 281). Truth check:
+`python -m harness run -- python -m scripts.check_against_truth SALES_002`. Verified baseline in
 [docs/phase1-baseline.md](docs/phase1-baseline.md). Next: Phase 2 (analytics & KPIs).
 
 Phase 1 covers: CSV / TSV / TXT / Excel / JSON / JSON Lines / Parquet / XML / fixed-width files → profiling →

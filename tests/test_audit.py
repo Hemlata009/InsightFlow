@@ -36,7 +36,7 @@ def test_every_entry_has_the_standard_shape(sales_run):
 def test_all_kinds_present_with_meaning(sales_run):
     _, log, _ = sales_run
     kinds = {e["kind"] for e in log}
-    assert {"change", "issue", "flag", "rejection"} <= kinds
+    assert {"change", "issue", "rejection"} <= kinds        # (no flags left: the business rules fill every blank)
     issue = next(e for e in log if e["kind"] == "issue")
     assert issue["rule"].startswith("unconvertible:") and issue["old"] is not None and issue["severity"] == "quarantine"
     rej = next(e for e in log if e["kind"] == "rejection")

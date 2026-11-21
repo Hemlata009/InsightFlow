@@ -22,9 +22,10 @@
 - 2026-11-21: **Gaps closed with existing tools**: DuckDB chunked mode (600k rows, 338 MB peak), ECB currency conversion, defusedxml, read_fwf, merged cells, pluggy hooks; 401 tests ([discussion 14](discussions/2026-11-21_14_existing-tools-for-gaps.md))
 - 2026-11-21: **Pushed to GitHub** (private, Actions disabled): https://github.com/Hemlata009/InsightFlow
 - 2026-11-21: **Review priorities 1–5**: docs/setup corrected, `datetime` type, exact Decimal money maths, standard audit log + plugin traceability, harness hardened (WinError 1455), Phase 1 **frozen** with a reproduced baseline; 442 tests ([discussion 17](discussions/2026-11-21_17_review-priorities.md))
+- 2026-11-21: **Business rules BR-1..9 set by InsightFlow**, notes vs warnings, truth check (5/5 PASS on both datasets), chunked fill-from-group; baseline re-recorded → tag `phase1-v1.1`; 447 tests ([discussion 18](discussions/2026-11-21_18_own-business-rules-and-truth-check.md))
 
 ## Current
-Phase 1 frozen (tag `phase1-v1.0`). Waiting for the user's decisions ([discussion 16](discussions/2026-11-21_16_where-stuck.md)) before Phase 2
+Phase 1 finished (tag `phase1-v1.1`). Next: Phase 2 (analytics & KPIs); KPI choices still open
 
 ## Next
 Phase 2: automated analytics, EDA and KPI engine (after the review)

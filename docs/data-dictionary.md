@@ -38,7 +38,24 @@ the cell as missing in the report; `derive` = calculate with the column's `deriv
 **Spelling:** text columns with `normalize_case: true` (Product, Category, Region, Sub_Category, Segment, State)
 are matched to the allowed value, or to the most common spelling (`" north "` → `North`).
 
-## Business rules (decided 2026-11-21, change in config if the business says otherwise)
+## Business rules set by InsightFlow (2026-11-21)
+The user has no business rules yet, so InsightFlow set these defaults from the data itself. They live in
+`configs/` and can be changed any time. Each was checked against both datasets: every **state** belongs to
+exactly one **region**, and every **order** has exactly one **customer** and one **date**.
+
+| ID | Rule | Why |
+|---|---|---|
+| BR-1 | Exact repeated rows (after cleaning) are removed; a copy is kept in `duplicates_removed.csv` | a repeat would double-count sales |
+| BR-2 | Missing **Region** is copied from other rows of the **same State**; none known → kept blank + flagged | a state belongs to one region |
+| BR-3 | Missing **Customer_ID** is copied from other lines of the **same order**; none → kept blank + flagged | an order has one customer |
+| BR-4 | Missing **Order_Date** is copied from other lines of the **same order**; none → row set aside | an order has one date; a sale without a date can't be reported |
+| BR-5 | If the rows of an order/state **disagree**, nothing is copied and the row is set aside | never guess |
+| BR-6 | More than **20%** of rows set aside → status `needs_review` | a file that bad needs a person |
+| BR-7 | Unclear dates (01/02/2025) are read the dataset's way (India: day first; US: month first) | locale convention |
+| BR-8 | Amounts in another currency are refused; no reporting currency | no real need yet |
+| BR-9 | No statistical filling (median/mean) for sales numbers | would invent money |
+
+## Original decisions (2026-11-21)
 | # | Question | Decision |
 |---|---|---|
 | 1 | What is one row? | One **order line**: one product in one order |

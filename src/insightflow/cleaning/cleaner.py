@@ -30,8 +30,13 @@ class CleanResult:
     flags: list[dict] = field(default_factory=list)     # kept, but needs a human look
 
 
-def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True) -> CleanResult:
-    """dedupe=False: skip steps (3)-(4); chunked mode does them across all chunks in DuckDB."""
+CONFLICT = object()     # marker: the rows of a group disagree on the value
+
+
+def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True,
+          group_values: dict | None = None) -> CleanResult:
+    """dedupe=False: skip steps (3)-(4); chunked mode does them across all chunks in DuckDB.
+    group_values: {column: {group key: value | CONFLICT}} learned from the WHOLE file (chunked mode)."""
     df = norm.data.copy()
     reasons: dict[int, list[str]] = {}
 
@@ -63,10 +68,14 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True) -> 
             df.loc[missing, col] = spec.fill_value
             actions += [_act("fill_value", r, col, None, spec.fill_value) for r in rows]
         elif policy == "fill_from_group":
-            a, f, bad_rows = _fill_from_group(df, col, spec.group_by, missing)
+            a, f, bad_rows = _fill_from_group(df, col, spec.group_by, missing,
+                                              (group_values or {}).get(col))
             actions += a
-            flags += f
             quarantine(bad_rows, f"group_values_conflict:{col}")
+            if spec.nullable:
+                flags += f                      # nothing to copy: keep the blank, flag it
+            else:                               # a required value that can't be filled: set the row aside
+                quarantine([x["source_row"] for x in f], f"missing_required:{col}")
         elif policy == "impute":
             a, f = _impute(df, col, spec, missing)
             actions += a
@@ -121,25 +130,42 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True) -> 
                        dups.reset_index(drop=True), actions, flags)
 
 
-def _fill_from_group(df, col, group_by, missing):
+def group_keys(df: pd.DataFrame, group_by: list[str]) -> pd.Series:
+    """One text key per row for the group columns; NA when any group column is blank (no group)."""
+    keys = df[group_by].astype("string")
+    no_key = keys.isna().any(axis=1)
+    return keys.fillna("").agg("|".join, axis=1).where(~no_key)
+
+
+def group_value_map(df: pd.DataFrame, col: str, group_by: list[str], into: dict | None = None) -> dict:
+    """{group key: the value its rows agree on | CONFLICT}; can be updated piece by piece."""
+    out = {} if into is None else into
+    keys = group_keys(df, group_by)
+    known = df[col].notna() & keys.notna()
+    for k, v in zip(keys[known], df.loc[known, col]):
+        prev = out.get(k, None)
+        if prev is None:
+            out[k] = v
+        elif prev is not CONFLICT and prev != v:
+            out[k] = CONFLICT
+    return out
+
+
+def _fill_from_group(df, col, group_by, missing, whole_file: dict | None = None):
     """Copy a value from other rows of the same group (e.g. the same order), only if they all agree.
     Never crosses into another group. Conflicting groups are quarantined; empty groups are flagged."""
     actions, flags, conflicts = [], [], []
-    keys = df[group_by].astype("string")
-    no_key = keys.isna().any(axis=1)                      # a row without a group key has no group
-    row_keys = keys.fillna("").agg("|".join, axis=1).where(~no_key)
-    known = df[col].notna() & ~no_key
-    stats = (pd.DataFrame({"k": row_keys, "v": df[col]})[known]
-             .groupby("k")["v"].agg(["nunique", "first"]))
+    row_keys = group_keys(df, group_by)
+    stats = whole_file if whole_file is not None else group_value_map(df, col, group_by)
     for i in df.index[missing]:
         k = row_keys[i]
-        if pd.isna(k) or k not in stats.index:
+        if pd.isna(k) or k not in stats:
             flags.append({"stage": "clean", "flag": "missing_value_no_group_value", "source_row": int(df.at[i, SOURCE_ROW]),
                           "column": col})
-        elif stats.at[k, "nunique"] > 1:
+        elif stats[k] is CONFLICT:
             conflicts.append(df.at[i, SOURCE_ROW])
         else:
-            value = stats.at[k, "first"]
+            value = stats[k]
             df.at[i, col] = value
             actions.append(_act("filled_from_group", df.at[i, SOURCE_ROW], col, None, _plain(value),
                                 detail=f"same {'+'.join(group_by)} rows agree"))

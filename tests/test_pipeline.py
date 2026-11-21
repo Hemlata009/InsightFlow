@@ -139,7 +139,7 @@ def test_same_file_twice_is_noticed(tmp_path):
     src = sample("SALES_002")
     run_phase1(src, "SALES_002", data_root=tmp_path)
     second = run_phase1(src, "SALES_002", data_root=tmp_path)
-    assert any("processed before" in w for w in second["warnings"])
+    assert any("processed before" in n for n in second["notes"])        # information, not a warning
 
 
 # ---------------------------------------------------------------- statuses on small files
@@ -191,3 +191,28 @@ def test_result_shape_is_stable(tmp_path):
     failed = run_phase1(p, "SALES_002", data_root=tmp_path / "data")
     ok = run_phase1(sample("SALES_002"), "SALES_002", data_root=tmp_path / "d2")
     assert set(failed) == set(ok)
+
+
+def test_notes_do_not_cause_warnings(tmp_path):
+    """Harmless information (sheet chosen, header row, blank rows) is a NOTE and doesn't change the status."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    wb.active.title = "About"
+    wb.active.append(["This workbook holds sales"])
+    ws = wb.create_sheet("Data")
+    ws.append(["Monthly export"])                                    # a title row above the header
+    ws.append(HEADER.split(","))
+    ws.append(GOOD_ROW.split(","))
+    ws.append(GOOD_ROW.replace("Pen Set", "Stapler").split(","))
+    p = tmp_path / "ok.xlsx"
+    wb.save(p)
+    res = run_phase1(p, "SALES_002", data_root=tmp_path / "d")
+    assert res["status"] == "completed", describe(res)
+    assert res["warnings"] == [] and any("header found on row 2" in n for n in res["notes"])
+
+
+def test_message_classifier():
+    from insightflow.pipeline.messages import split_messages
+    notes, warnings = split_messages(["workbook has 2 sheets ['A', 'B']; using 'B'", "3 blank row(s) skipped",
+                                      "duplicate column name 'x'; renamed to 'x__2'", "something new and unknown"])
+    assert len(notes) == 2 and warnings == ["duplicate column name 'x'; renamed to 'x__2'", "something new and unknown"]

@@ -16,13 +16,15 @@ columns:
     type: date
     required: true
     nullable: false
-    missing_policy: quarantine
+    missing_policy: fill_from_group   # BR-4: all lines of an order share its date; none known -> set aside
+    group_by: [Order_ID]
     aliases: [order_date, date, invoice_date]
     description: Date the order was placed.
   Customer_ID:
     type: string
     required: true
-    missing_policy: keep_and_flag
+    missing_policy: fill_from_group   # BR-3: all lines of an order belong to one customer; else keep + flag
+    group_by: [Order_ID]
     aliases: [customer_id, cust_id, customer_code]
     description: Customer identifier. Always text (keeps leading zeros).
   Product:
@@ -44,7 +46,8 @@ columns:
     type: string
     normalize_case: true
     required: true
-    missing_policy: keep_and_flag
+    missing_policy: fill_from_group   # BR-2: a state belongs to one region; else keep + flag
+    group_by: [State]
     aliases: [region, sales_region, zone]
     description: Sales region. Allowed values are set per dataset.
   Quantity:

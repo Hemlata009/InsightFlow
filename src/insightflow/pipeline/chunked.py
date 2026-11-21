@@ -191,6 +191,7 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                     first_log[0] = False
 
             spellings = _whole_file_spellings(run, cfg, p.chunk_rows)
+            group_values = _whole_file_group_values(run, cfg, p.chunk_rows, spellings)
             for i, (raw, bad) in enumerate(run.chunks(p.chunk_rows)):
                 counts["rows_input"] += len(raw) + len(bad)
                 if before is None and len(raw):
@@ -200,7 +201,7 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                 if norm is not None and norm.missing_required:
                     raise IngestionError("missing_required_columns",
                                          f"required column(s) not found: {norm.missing_required}")
-                cleaned = clean(norm, cfg, dedupe=False) if norm is not None else None
+                cleaned = clean(norm, cfg, dedupe=False, group_values=group_values) if norm is not None else None
                 val = validate(cleaned.data, cfg) if cleaned is not None else None
                 if val is not None and val.structural_errors:
                     raise IngestionError("schema_error", "; ".join(val.structural_errors))
@@ -302,13 +303,15 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
         raise RuntimeError("row accounting mismatch in chunked mode")
     share = counts["quarantined"] / n_in if n_in else 0.0
     flags_n = len(counts["flags"])
+    from insightflow.pipeline.messages import split_messages
+    notes, warnings = split_messages(warnings)
     status = ("needs_review" if share > p.max_quarantine_share else
               "completed_with_warnings" if (counts["quarantined"] or flags_n or warnings) else "completed")
     result.update(status=status, rows_input=n_in, rows_output=kept_rows, rows_quarantined=counts["quarantined"],
                   rows_duplicates_removed=dup_rows, rows_flagged=flags_n,
                   transformations_applied=dict(sorted(counts["transformations"].items())),
                   validation_errors=[f"{k}: {v['rows']} row(s) [{v['severity']}]" for k, v in counts["checks"].items()],
-                  warnings=warnings, processing_mode="chunked")
+                  warnings=warnings, notes=notes, processing_mode="chunked")
     quality = {"dataset_id": cfg.dataset_id, "run_id": result["run_id"], "before": before,
                "after": {"rows": kept_rows, "missing_by_column": missing, "key_conflict_rows": conflict_rows},
                "validation": {"summary": counts["checks"]}, "quarantine_share": round(share, 4),
@@ -349,16 +352,35 @@ def _whole_file_spellings(run, cfg, size) -> dict[str, dict[str, str]]:
     return out
 
 
+def _whole_file_group_values(run, cfg, size, spellings) -> dict:
+    """Second pass: for each fill_from_group column, the value every group (e.g. order) agrees on across
+    the WHOLE file, so a blank in one piece can be filled from a row in another piece."""
+    from insightflow.cleaning.cleaner import group_value_map
+
+    cols = {c: s.group_by for c, s in cfg.columns.items() if s.missing_policy == "fill_from_group"}
+    if not cols:
+        return {}
+    maps: dict[str, dict] = {c: {} for c in cols}
+    for raw, _bad in run.chunks(size):
+        if not len(raw):
+            continue
+        norm = normalize(raw, cfg, spellings=spellings)
+        for col, group_by in cols.items():
+            if col in norm.data and all(g in norm.data for g in group_by):
+                group_value_map(norm.data, col, group_by, into=maps[col])
+    return maps
+
+
 def _without_whole_table_policies(cfg, warnings):
-    """fill_from_group / impute need every row at once; fall back safely in chunked mode."""
+    """impute needs every row at once; fall back safely in chunked mode (fill_from_group is supported)."""
     changed = []
     cfg = cfg.model_copy(deep=True)
     for name, spec in cfg.columns.items():
-        if spec.missing_policy in ("fill_from_group", "impute"):
+        if spec.missing_policy == "impute":
             spec.missing_policy = "keep_and_flag" if spec.nullable else "quarantine"
             changed.append(name)
     if changed:
-        warnings.append(f"chunked mode can't use fill_from_group/impute for {changed}: blanks kept and flagged instead")
+        warnings.append(f"chunked mode can't use impute for {changed}: blanks kept and flagged instead")
     return cfg
 
 

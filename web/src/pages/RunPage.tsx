@@ -215,6 +215,16 @@ function Summary({ r }: { r: RunResult }) {
           )}
         </div>
       </div>
+      {r.notes && r.notes.length > 0 && (
+        <>
+          <h3>Notes (information only, don't affect the status)</h3>
+          <ul className="list muted">
+            {r.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </>
+      )}
       <p className="muted small">Run {r.run_id} · input {r.source_file}</p>
     </section>
   );

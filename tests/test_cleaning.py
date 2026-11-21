@@ -51,10 +51,12 @@ def test_missing_required_quarantined():
     assert sorted(c.quarantine[REASONS]) == ["missing_required:Order_ID", "missing_required:Quantity"]
 
 
-def test_missing_keep_and_flag():
+def test_missing_customer_with_nothing_to_copy_is_kept_and_flagged():
+    # BR-3: fill from the same order; a one-line order has nothing to copy from -> keep + flag
     c = run(table({"Customer_ID": "NULL"}))
     assert len(c.data) == 1 and pd.isna(c.data.loc[0, "Customer_ID"])
-    assert c.flags == [{"stage": "clean", "flag": "missing_value", "source_row": 2, "column": "Customer_ID"}]
+    assert c.flags == [{"stage": "clean", "flag": "missing_value_no_group_value", "source_row": 2,
+                        "column": "Customer_ID"}]
 
 
 @pytest.mark.parametrize("column, expected", [("Discount", 0.1), ("Sales", 180.0), ("Unit_Price", 100.0)])

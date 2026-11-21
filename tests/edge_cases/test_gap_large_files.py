@@ -88,7 +88,7 @@ def test_auto_switch_when_file_is_too_big(tmp_path):
     res = run_phase1(p, "SALES_002", data_root=tmp_path / "d",
                      config_dir=config_copy(tmp_path, max_file_mb=0.01, chunk_rows=500))
     assert res["processing_mode"] == "chunked" and res["rows_output"] == 2000
-    assert any("switched to chunked mode" in w for w in res["warnings"])
+    assert any("switched to chunked mode" in n for n in res["notes"])          # information, not a warning
     never = run_phase1(p, "SALES_002", data_root=tmp_path / "d2",
                        config_dir=config_copy(tmp_path, max_file_mb=0.01, large_files="never"))
     assert never["status"] == "failed" and never["error"]["code"] == "too_large"
@@ -125,6 +125,19 @@ def test_excel_too_big_is_refused_with_advice(tmp_path):
     assert res["status"] == "failed" and res["error"]["code"] == "too_large"
 
 
+def test_chunked_fills_from_groups_across_pieces(tmp_path):
+    """BR-3 in chunked mode: a blank customer in one piece is filled from the same order in another piece."""
+    rows = [ROW.format(i=i, p=PRODUCTS[i % 5]).replace(",C1,", f",C{i},") for i in range(1, 301)]
+    rows.append(ROW.format(i=7, p="Laptop").replace(",C1,", ",NA,").replace("Office Supplies", "Electronics"))
+    p = tmp_path / "g.csv"
+    p.write_text(HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+    res = run_phase1(p, "SALES_002", data_root=tmp_path / "d",
+                     config_dir=config_copy(tmp_path, large_files="always", chunk_rows=100))
+    clean, _, _ = outputs(res)
+    assert clean.loc[clean["source_row"] == "302", "Customer_ID"].tolist() == ["C7"]   # from row 8, 3 pieces earlier
+    assert res["rows_flagged"] == 0
+
+
 def test_chunked_falls_back_for_whole_table_policies(tmp_path):
     d = config_copy(tmp_path, large_files="always", chunk_rows=100)
     f = d / "domains" / "sales.yaml"
@@ -134,4 +147,4 @@ def test_chunked_falls_back_for_whole_table_policies(tmp_path):
     p = tmp_path / "s.csv"
     p.write_text(HEADER + "\n" + ROW.format(i=1, p="Pen Set").replace(",20", ",") + "\n", encoding="utf-8")
     res = run_phase1(p, "SALES_002", data_root=tmp_path / "d", config_dir=d)
-    assert any("can't use fill_from_group/impute" in w for w in res["warnings"]) and res["rows_flagged"] == 1
+    assert any("can't use impute" in w for w in res["warnings"]) and res["rows_flagged"] == 1

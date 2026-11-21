@@ -24,6 +24,7 @@ export type RunResult = {
   transformations_applied: Record<string, number>;
   validation_errors: string[];
   warnings: string[];
+  notes?: string[];
   error: { code: string; message: string } | null;
   output_paths: Record<string, string>;
 };
