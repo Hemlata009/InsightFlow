@@ -31,7 +31,7 @@ answer through a chat assistant, a dashboard or an email, without needing a data
 - LLMs: interpret evidence, explain findings, recommend actions.
 - LangGraph: orchestrates multi-step AI investigations.
 - MCP: the *interface* for AI clients, not the analytics engine.
-- Streamlit: visual UI.
+- React (Vite + TypeScript) + local FastAPI: visual UI (replaced Streamlit on 2026-11-21).
 - APScheduler / worker: scheduled workflows that run without an AI client open.
 - **Domain-agnostic core + domain config packs** (e.g. `config/domains/sales.yaml`). Nothing
   domain-specific is hard-coded in core modules.
@@ -46,7 +46,7 @@ answer through a chat assistant, a dashboard or an email, without needing a data
 | 4 | Forecasting and predictive analytics | 4 |
 | 5 | LangGraph multi-step AI workflows | 5 |
 | 6 | MCP server for Claude / ChatGPT | 6 |
-| 7 | Streamlit dashboard | 7 |
+| 7 | React dashboard (explorer started early, in Phase 1) | 7 |
 | 8 | HTML/PDF reports and email automation | 8 |
 | 9 | Database, scheduling, monitoring, production readiness | 9 |
 
@@ -59,7 +59,7 @@ answer through a chat assistant, a dashboard or an email, without needing a data
 | 3–4 | Scikit-learn, XGBoost (maybe Prophet), LLM API |
 | 5 | LangGraph |
 | 6 | MCP Python SDK |
-| 7 | Streamlit |
+| 7 | React + FastAPI (explorer already set up) |
 | 8 | Jinja2, PDF library, SMTP/email service |
 | 9 | PostgreSQL, SQLAlchemy, APScheduler, logging/monitoring |
 

@@ -29,3 +29,6 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-21 | Exact duplicates (after normalization) removed but saved with the row they duplicate; key conflicts only flagged | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
 | 2026-11-21 | Quarantine files keep the ORIGINAL text + reasons; flags count only for kept rows | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
 | 2026-11-21 | Phase 1 complete: ingest → profile → normalize → clean → validate → audit via `run_phase1()` | [11](discussions/2026-11-21_11_phase1-steps5-9.md) |
+| 2026-11-21 | UI = React (Vite + TypeScript) + a local FastAPI service, replacing Streamlit; started via `python -m harness ui` | [12](discussions/2026-11-21_12_react-explorer.md) |
+| 2026-11-21 | API is local only (127.0.0.1), one run at a time, uploads limited to .csv/.xlsx ≤ max_file_mb | [12](discussions/2026-11-21_12_react-explorer.md) |
+| 2026-11-21 | Never run the test suite while the explorer server is running (low RAM) | [12](discussions/2026-11-21_12_react-explorer.md) |

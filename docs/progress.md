@@ -17,8 +17,10 @@
 - 2026-11-21: **Phase 1, Steps 8–9: audit outputs + full pipeline**: messy files → truth in both datasets, idempotent, 256 tests passing
 - 2026-11-21: ✅ **Phase 1 complete** ([discussion 11](discussions/2026-11-21_11_phase1-steps5-9.md))
 
+- 2026-11-21: **React explorer**: Run pipeline / Edge-case lab / Rule book, local FastAPI, 266 tests passing ([discussion 12](discussions/2026-11-21_12_react-explorer.md))
+
 ## Current
-Review Phase 1 with the user: edge cases and further requirements
+User explores Phase 1 in the **React explorer** (`python -m harness ui` → http://127.0.0.1:8000), then we review edge cases and requirements
 
 ## Next
 Phase 2: automated analytics, EDA and KPI engine (after the review)

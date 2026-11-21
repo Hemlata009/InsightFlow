@@ -29,3 +29,6 @@ Thumbs.db
 
 # Superstore-derived sample (licence unclear; rebuild with scripts.sample_data)
 data/sample/SALES_001/
+
+# Files uploaded through the explorer UI
+data/uploads/

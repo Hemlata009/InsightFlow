@@ -96,3 +96,17 @@ def test_task_can_print_rupee_sign(tmp_path):
     cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
     res = run_guarded([sys.executable, "-c", "print('\u20b9 1,00,000')"], cfg=cfg)
     assert res.outcome == "passed"
+
+
+def test_cwd_option_runs_in_subfolder(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    res = run_guarded([sys.executable, "-c", "import os,sys; sys.exit(0 if os.path.basename(os.getcwd())=='harness' else 3)"],
+                      cfg=cfg, cwd="harness")
+    assert res.outcome == "passed"
+    assert run_guarded([sys.executable, "-c", "pass"], cfg=cfg, cwd="no_such_dir").outcome == "failed"
+
+
+def test_zero_timeout_means_no_limit(tmp_path):
+    cfg = _cfg(tmp_path, block_available_mb=0, warn_available_mb=0, critical_available_mb=0)
+    res = run_guarded([sys.executable, "-c", "import time; time.sleep(1.2)"], cfg=cfg, timeout=0)
+    assert res.outcome == "passed"

@@ -82,10 +82,11 @@ def run_guarded(
     timeout: float | None = None,
     max_task_mb: int | None = None,
     record_history: bool = True,
+    cwd: str | Path | None = None,
 ) -> RunResult:
     cfg = cfg or load_config()
     m, r = cfg["memory"], cfg["runner"]
-    timeout = timeout or r["default_timeout_seconds"]
+    timeout = r["default_timeout_seconds"] if timeout is None else timeout
     max_task_mb = max_task_mb or m["max_task_mb"]
     db_path = ROOT / cfg["paths"]["db"]
 
@@ -95,33 +96,28 @@ def run_guarded(
         _save(db_path, cmd, res, record_history)
         return res
 
+    workdir = (ROOT / cwd).resolve() if cwd else ROOT
+    if not workdir.is_dir():
+        res = RunResult("failed", None, 0.0, 0, Snapshot.take(0.1).available_mb, verdict, f"no such folder: {workdir}")
+        _save(db_path, cmd, res, record_history)
+        return res
     cmd = resolve_command(cmd)
     start = time.monotonic()
     try:
         env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}  # print ₹ safely
-        popen = subprocess.Popen(cmd, cwd=ROOT, env=env)
+        popen = subprocess.Popen(cmd, cwd=workdir, env=env)
     except OSError as e:
         res = RunResult("failed", None, 0.0, 0, Snapshot.take(0.1).available_mb, verdict,
                         f"could not start {cmd[0]!r}: {e.strerror or e}")
         _save(db_path, cmd, res, record_history)
         return res
     proc = psutil.Process(popen.pid)
-    peak, min_free, outcome, note = 0, 10**9, None, ""
 
-    while popen.poll() is None:
-        used = _tree_rss_mb(proc)
-        free = psutil.virtual_memory().available // 2**20
-        peak, min_free = max(peak, used), min(min_free, free)
-        if used > max_task_mb:
-            outcome, note = "killed_memory", f"task used {used} MB > limit {max_task_mb} MB"
-        elif free < m["critical_available_mb"]:
-            outcome, note = "killed_memory", f"system free RAM {free} MB < {m['critical_available_mb']} MB"
-        elif time.monotonic() - start > timeout:
-            outcome, note = "timeout", f"exceeded {timeout:.0f} s"
-        if outcome:
-            _kill_tree(proc)
-            break
-        time.sleep(r["poll_seconds"])
+    try:
+        outcome, note, peak, min_free = _watch(popen, proc, m, r, start, timeout, max_task_mb)
+    except KeyboardInterrupt:                   # Ctrl+C: stop the task and everything it started
+        _kill_tree(proc)
+        outcome, note, peak, min_free = "stopped", "stopped by user (Ctrl+C)", 0, 10**9
 
     code = popen.wait()
     if outcome is None:
@@ -130,6 +126,25 @@ def run_guarded(
     res = RunResult(outcome, code, round(time.monotonic() - start, 2), peak, min_free, verdict, note)
     _save(db_path, cmd, res, record_history)
     return res
+
+
+def _watch(popen, proc, m, r, start, timeout, max_task_mb):
+    peak, min_free, outcome, note = 0, 10**9, None, ""
+    while popen.poll() is None:
+        used = _tree_rss_mb(proc)
+        free = psutil.virtual_memory().available // 2**20
+        peak, min_free = max(peak, used), min(min_free, free)
+        if used > max_task_mb:
+            outcome, note = "killed_memory", f"task used {used} MB > limit {max_task_mb} MB"
+        elif free < m["critical_available_mb"]:
+            outcome, note = "killed_memory", f"system free RAM {free} MB < {m['critical_available_mb']} MB"
+        elif timeout > 0 and time.monotonic() - start > timeout:
+            outcome, note = "timeout", f"exceeded {timeout:.0f} s"
+        if outcome:
+            _kill_tree(proc)
+            break
+        time.sleep(r["poll_seconds"])
+    return outcome, note, peak, min_free
 
 
 def _save(db_path, cmd, res: RunResult, enabled: bool) -> None:

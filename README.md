@@ -18,6 +18,7 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 - [Data dictionary & business rules](docs/data-dictionary.md): columns, rules, locales
 - [Sample datasets](docs/datasets.md): SALES_001 + SALES_002, answer keys, how to rebuild
 - [Local harness](docs/harness.md): how to run every dev task safely on this PC
+- [React explorer](docs/discussions/2026-11-21_12_react-explorer.md): what the UI does and how it works
 - [Progress](docs/progress.md): where we are now
 
 ## Status
@@ -25,6 +26,15 @@ automatically. Users can reach it through AI assistants (Claude, ChatGPT), a Str
 **Phase 1 complete**: data intake & quality engine (256 tests). Next: review, then Phase 2 (analytics & KPIs).
 
 > Run every dev task through the harness. See [CLAUDE.md](CLAUDE.md) and [docs/harness.md](docs/harness.md).
+
+## Explore it in the browser (React)
+
+```powershell
+.\.venv\Scripts\python -m harness ui          # then open http://127.0.0.1:8000  (Ctrl+C to stop)
+.\.venv\Scripts\python -m harness ui --dev    # live reload while editing web/src: http://127.0.0.1:5173
+```
+Tabs: **Run pipeline** (sample or upload; browse clean / set aside / duplicates / change log),
+**Edge-case lab** (type values, see how they're read), **Rule book** (the merged config).
 
 ## Run the Phase 1 pipeline
 

@@ -11,12 +11,15 @@ commands directly. This machine has only ~6 GB RAM and is often under 1 GB free.
 .\.venv\Scripts\python -m harness status           # git + current step + last run + resources
 .\.venv\Scripts\python -m harness history          # recent runs (SQLite: .local/harness.db)
 .\.venv\Scripts\python -m harness run -- python -m insightflow.pipeline <file> <DATASET_ID>   # Phase 1 pipeline
+.\.venv\Scripts\python -m harness ui               # React explorer + API (http://127.0.0.1:8000)
+.\.venv\Scripts\python -m harness run --cwd web -- npm run build   # commands inside web/
 ```
 
 Rules:
 - `[STOP]` from `check`: don't start the task. Tell the user which programs use the most memory.
   Use `--force` only if the user agrees.
 - One heavy task at a time. No parallel test runs (`pytest -n`), no parallel agents doing heavy work.
+- Never run tests while `harness ui` is running (stop it first); together they hit the memory limit.
 - Data work: read large files in chunks; use small sample data in tests.
 - Limits live in `harness/config.yaml`. Change them there, never in code.
 - Docker / PostgreSQL are **deferred** (see `docs/harness.md`). Use SQLite for local storage until Phase 9.

@@ -19,8 +19,13 @@ pipeline, the MCP server and Streamlit. It protects this low-memory PC from hang
 | `python -m harness run -- <cmd>` | Runs any command under the guard |
 | `python -m harness status` | Branch, last commit, uncommitted files, current step, last run, resources |
 | `python -m harness history [-n 20]` | Recent runs from the SQLite history |
+| `python -m harness ui [--dev] [--port 8000]` | React explorer + API; installs/builds when needed; Ctrl+C stops all |
 
-Options for `test` and `run`: `--force` (start despite low resources), `--timeout <s>`.
+Options for `test` and `run`: `--force` (start despite low resources), `--timeout <s>` (`0` = no limit),
+`--cwd <folder>` (run inside a subfolder, e.g. `web`).
+
+**Real event (2026-11-21):** tests were started while the explorer server was running; free RAM fell to
+230 MB and the watchdog stopped both before the PC could freeze. Rule: stop `harness ui` before running tests.
 
 ## How the guard works
 1. **Before start:** checks free RAM, disk and CPU against `harness/config.yaml`.

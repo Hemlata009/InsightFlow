@@ -40,7 +40,7 @@ def _report(res) -> int:
         print(f"[harness] {res.note}")
     if res.outcome == "blocked":
         print("[harness] Not started: free some memory (run `python -m harness check`) or use --force.")
-    return {"passed": 0, "failed": 1}.get(res.outcome, 2)
+    return {"passed": 0, "stopped": 0, "failed": 1}.get(res.outcome, 2)
 
 
 def cmd_test(args) -> int:
@@ -53,7 +53,7 @@ def cmd_run(args) -> int:
     if not rest:
         print("usage: python -m harness run -- <command> [args]")
         return 2
-    return _report(run_guarded(rest, force=args.force, timeout=args.timeout))
+    return _report(run_guarded(rest, force=args.force, timeout=args.timeout, cwd=args.cwd))
 
 
 def _git(*a: str) -> str:
@@ -83,6 +83,33 @@ def cmd_status(_args) -> int:
     return cmd_check(_args)
 
 
+def _ui_needs_build() -> bool:
+    dist = ROOT / "web" / "dist" / "index.html"
+    if not dist.exists():
+        return True
+    built = dist.stat().st_mtime
+    sources = [*(ROOT / "web" / "src").rglob("*"), ROOT / "web" / "index.html", ROOT / "web" / "package.json"]
+    return any(f.is_file() and f.stat().st_mtime > built for f in sources)
+
+
+def cmd_ui(args) -> int:
+    if not (ROOT / "web" / "node_modules").exists():
+        print("[harness] installing UI packages (first time only)...")
+        res = run_guarded(["npm", "install", "--no-audit", "--no-fund"], cwd="web", timeout=900, force=args.force)
+        if res.outcome != "passed":
+            return _report(res)
+    if args.dev:
+        return _report(run_guarded([sys.executable, "-m", "scripts.dev_ui"], timeout=0, force=args.force))
+    if _ui_needs_build():
+        print("[harness] building the UI...")
+        res = run_guarded(["npm", "run", "build"], cwd="web", timeout=600, force=args.force)
+        if res.outcome != "passed":
+            return _report(res)
+    print(f"[harness] open http://127.0.0.1:{args.port}  (Ctrl+C to stop)")
+    return _report(run_guarded([sys.executable, "-m", "insightflow.api", "--port", str(args.port)],
+                               timeout=0, force=args.force))
+
+
 def cmd_history(args) -> int:
     rows = db.recent(ROOT / load_config()["paths"]["db"], limit=args.limit)
     if not rows:
@@ -104,11 +131,18 @@ def main(argv: list[str] | None = None) -> int:
     h.add_argument("-n", "--limit", type=int, default=10)
     h.set_defaults(fn=cmd_history)
 
+    u = sub.add_parser("ui", help="start the React explorer + API (builds the UI if needed)")
+    u.add_argument("--dev", action="store_true", help="live reload: Vite on :5173 + API on :8000")
+    u.add_argument("--port", type=int, default=8000)
+    u.add_argument("--force", action="store_true", help="start even if resources are low")
+    u.set_defaults(fn=cmd_ui)
+
     for name, fn, helptext in [("test", cmd_test, "run pytest under the guard"),
                                ("run", cmd_run, "run any command under the guard")]:
         sp = sub.add_parser(name, help=helptext)
         sp.add_argument("--force", action="store_true", help="start even if resources are low")
-        sp.add_argument("--timeout", type=float, default=None, help="seconds before the task is stopped")
+        sp.add_argument("--timeout", type=float, default=None, help="seconds before the task is stopped (0 = no limit)")
+        sp.add_argument("--cwd", default=None, help="folder to run in, relative to the project root (e.g. web)")
         sp.add_argument("rest", nargs=argparse.REMAINDER)
         sp.set_defaults(fn=fn)
 
