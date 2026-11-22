@@ -27,6 +27,7 @@
 - 2026-11-21: **Safe recovery**: chaos set-aside 38% → 13%; repair from formula, partial-date strategies + hook, dateparser, IST, placeholders, overflow, Excel arithmetic; 460 tests ([discussion 20](discussions/2026-11-21_20_recover-set-aside-rows.md))
 - 2026-11-22: **Phase 1 closing checks**: header_rows in the rule book, 600k rows 397 s → 82 s, ruff review, pushed; 461 tests; tag `phase1-v1.4` ([discussion 21](discussions/2026-11-22_21_phase1-closing-checks.md))
 - 2026-11-22: **Missing-value choices**: fill down/up, guesses marked, BR-9 money guard, business switches checked against limits ([27](discussions/2026-11-22_27_missing-value-choices.md)); rule book layer 4 `configs/choices/` edited from the web page, marks summary in the Run tab; 496 tests ([28](discussions/2026-11-22_28_missing-values-in-ui.md))
+- 2026-11-22: **Full Phase 1 re-test** ([30](discussions/2026-11-22_30_phase1-full-retest.md)) and its 4 fixes: giant cells, unclosed quotes, formula-like text, lab partial dates; 510 tests ([31](discussions/2026-11-22_31_retest-fixes.md))
 
 ## Current
 **Phase 1 finished** (tag `phase1-v1.4`). **Phase 2 design started** ([discussion 29](discussions/2026-11-22_29_phase2-start-handover.md)): KPI engine, EDA, charts. Still wanted from the user: one real business file; approval of BR-1..15

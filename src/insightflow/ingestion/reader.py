@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import itertools
 import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time
@@ -35,6 +36,81 @@ ZIP_MAGIC = b"PK\x03\x04"
 OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"          # old .xls and password-protected .xlsx
 ENCRYPTED_MARK = "EncryptedPackage".encode("utf-16-le")
 DELIMITERS = [",", ";", "\t", "|"]
+
+
+MAX_CELL_CHARS = 10_000_000            # one cell may hold up to 10 million characters (default was 131,072)
+csv.field_size_limit(MAX_CELL_CHARS)
+
+
+def csv_records(open_lines, delimiter: str):
+    """Like csv.reader, but a quote that is never closed no longer swallows the rows after it.
+
+    open_lines(skip) -> an iterator over the text lines after the first `skip` lines (line endings kept).
+    Yields (line, record, None) for each record (line = file line where it ends), and
+    (line, None, raw_line) for a line whose opening quote is not closed on that line and swallows whole rows
+    after it (closed only by a later stray quote, or never): that line is set aside and reading restarts on
+    the next line. Real multi-line cells (a note with a line break) are kept."""
+    offset, width = 0, None
+    while True:
+        reader = csv.reader(open_lines(offset), delimiter=delimiter)
+        pending, prev_end, restart = None, offset, False
+        for record in reader:
+            end = offset + reader.line_num
+            start, prev_end = prev_end + 1, end
+            if width is None and any(c.strip() for c in record):
+                width = len(record)                      # the first row with content (the header)
+            if end > start and width and _swallows_rows(record, delimiter, width):
+                if pending is not None:
+                    yield pending[1], pending[2], None
+                yield start, None, _first_line(open_lines, start)
+                offset, restart = start, True
+                break
+            if pending is not None:
+                yield pending[1], pending[2], None
+            pending = (start, end, record)
+        if restart:
+            continue
+        if pending is None:
+            return
+        start, end, record = pending
+        if end > start and _quote_never_closed(open_lines(start - 1), delimiter):
+            yield start, None, _first_line(open_lines, start)
+            offset = start
+            continue
+        yield end, record, None
+        return
+
+
+def _first_line(open_lines, line: int) -> str:
+    return next(iter(open_lines(line - 1)), "").rstrip("\r\n")
+
+
+def _swallows_rows(record, delimiter: str, width: int) -> bool:
+    """A cell holding line breaks AND whole rows (as many separators as a row has) = rows swallowed by a quote."""
+    if width < 2:
+        return False
+    return any(("\n" in f or "\r" in f) and any(seg.count(delimiter) >= width - 1 for seg in f.splitlines()[1:])
+               for f in record)
+
+
+def _quote_never_closed(lines, delimiter: str) -> bool:
+    try:
+        next(csv.reader(lines, delimiter=delimiter, strict=True), None)
+    except csv.Error as e:
+        return "unexpected end of data" in str(e)
+    return False
+
+
+def csv_error(e: csv.Error, line: int, name: str) -> IngestionError:
+    if "field larger than field limit" in str(e):
+        return IngestionError("cell_too_large", f"{name}: a cell near line {line} is longer than "
+                                                f"{MAX_CELL_CHARS:,} characters; split or shorten it")
+    return IngestionError("corrupt_file", f"CSV parse error near line {line}: {e}")
+
+
+def unclosed_quote_warning(line: int) -> str:
+    return (f"row {line}: a quote (\") is opened but not closed on that row; that row is set aside and the rows after it "
+            "were read normally")
 
 
 class IngestionError(Exception):
@@ -115,7 +191,11 @@ def read_file(path: str | Path, *, known_headers: set[str] | None = None,
                         read_at=datetime.now().isoformat(timespec="seconds"))
     warnings: list[str] = []
     if fmt == "csv":
-        rows = _csv_rows(raw, opts, meta, warnings)
+        rows, quote_bad = _csv_rows(raw, opts, meta, warnings)
+        res = _build(rows, meta, warnings, known_headers, opts)
+        if quote_bad:
+            res.bad_rows = sorted(res.bad_rows + quote_bad, key=lambda b: b["source_row"])
+        return res
     elif fmt == "xlsx":
         rows = _xlsx_rows(raw, opts, meta, warnings, known_headers)
     elif fmt in ("json", "jsonl"):
@@ -202,18 +282,30 @@ def _decode(raw: bytes, forced: str | None) -> tuple[str, str]:
 def _detect_delimiter(text: str) -> str:
     """Pick the delimiter that splits the first lines into the most consistent number (>1) of fields."""
     sample = "\n".join(text.splitlines()[:50])
-    best, best_score = None, (-1, 0)
-    for d in DELIMITERS:
-        counts = [len(r) for r in csv.reader(io.StringIO(sample), delimiter=d) if any(c.strip() for c in r)]
-        if not counts:
-            continue
-        mode = max(set(counts), key=counts.count)
-        if mode < 2:
-            continue
-        score = (counts.count(mode), mode)            # most rows agreeing, then most columns
-        if score > best_score:
-            best, best_score = d, score
-    return best
+    lines = [line for line in sample.splitlines() if line.strip()]
+
+    def quote_aware(d):
+        try:
+            return [len(r) for r in csv.reader(io.StringIO(sample), delimiter=d) if any(c.strip() for c in r)]
+        except csv.Error:                             # e.g. a giant cell
+            return []
+
+    # second try, only if the first finds nothing: count plainly (a stray quote or a giant cell confused it)
+    for count in (quote_aware, lambda d: [line.count(d) + 1 for line in lines]):
+        best, best_score = None, (-1, 0)
+        for d in DELIMITERS:
+            counts = count(d)
+            if not counts:
+                continue
+            mode = max(set(counts), key=counts.count)
+            if mode < 2:
+                continue
+            score = (counts.count(mode), mode)        # most rows agreeing, then most columns
+            if score > best_score:
+                best, best_score = d, score
+        if best is not None:
+            return best
+    return None
 
 
 def _csv_rows(raw, opts, meta, warnings) -> list[tuple[int, list[str]]]:
@@ -227,15 +319,23 @@ def _csv_rows(raw, opts, meta, warnings) -> list[tuple[int, list[str]]]:
     if meta.delimiter is None:                        # nothing splits the lines: maybe fixed-width text
         warnings.append("no column separator found; read as fixed-width columns")
         meta.format = "fwf"
-        return _fwf_text_rows(text, meta)
-    reader = csv.reader(io.StringIO(text, newline=""), delimiter=meta.delimiter)
-    rows = []
+        return _fwf_text_rows(text, meta), []
+    rows, quote_bad, line = [], [], 0
     try:
-        for record in reader:
-            rows.append((reader.line_num, record))   # line_num = file line where the record ends
+        for line, record, raw_line in csv_records(
+                lambda skip: itertools.islice(io.StringIO(text, newline=""), skip, None), meta.delimiter):
+            if record is None:
+                quote_bad.append({"source_row": line, "reason": "quote never closed", "values": [raw_line]})
+                warnings.append(unclosed_quote_warning(line))
+            else:
+                rows.append((line, record))          # line = file line where the record ends
     except csv.Error as e:
-        raise IngestionError("corrupt_file", f"CSV parse error near line {reader.line_num}: {e}") from e
-    return rows
+        raise csv_error(e, line + 1, meta.file_name) from e
+    content = [n for n, r in rows if any(c.strip() for c in r)]
+    if quote_bad and (not content or quote_bad[0]["source_row"] < content[0]):
+        raise IngestionError("corrupt_file", f"{meta.file_name}: line {quote_bad[0]['source_row']} (the first line) "
+                                             "opens a quote (\") that is never closed; fix that line")
+    return rows, quote_bad
 
 
 # ---------------------------------------------------------------- Excel

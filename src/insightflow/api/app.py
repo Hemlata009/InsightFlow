@@ -19,7 +19,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from insightflow import __version__
-from insightflow.config import CHOICE_KEYS, CONFIG_DIR, choices_path, load_dataset_config, read_choices, save_choices
+from insightflow.config import (
+    CHOICE_KEYS,
+    CONFIG_DIR,
+    choices_path,
+    load_dataset_config,
+    read_choices,
+    save_choices,
+)
 from insightflow.ingestion import IngestionError, read_file
 from insightflow.normalization import NotConvertible, parse_dates, parse_number
 from insightflow.pipeline.phase1 import DATA_ROOT, ROOT, run_phase1
@@ -51,6 +58,40 @@ class LabRequest(BaseModel):
     values: list[str]
     ambiguous_dates: str | None = None   # "use_locale" | "quarantine"
     ignore_date_range: bool = False      # lab only: show how a value WOULD be read, whatever the dataset range
+
+
+def completed_partial_dates(values, dates, reason, cfg) -> dict[int, dict]:
+    """Lab: complete partial dates exactly like a run (policies.partial_dates); the other typed values are the
+    context (like the other rows of a file)."""
+    from insightflow.ingestion import SOURCE_ROW
+    from insightflow.normalization.partial_dates import (
+        PartialDateContext,
+        extract_parts,
+        resolve,
+    )
+    todo = [i for i in range(len(values)) if str(reason.iloc[i]) in ("missing_day", "missing_year")]
+    if not todo:
+        return {}
+    policy = cfg.policies.partial_dates
+    frame = pd.DataFrame({SOURCE_ROW: range(len(values)), "d": dates})
+    ctx = PartialDateContext.from_frame(frame, "d", set(todo))
+    out = {}
+    for i in todo:
+        parts = extract_parts(values[i], cfg.locale.date_order)
+        if parts is None:
+            continue
+        strategy = policy.missing_day if parts["kind"] == "missing_day" else policy.missing_year
+        if strategy in ("quarantine", "plugin"):
+            note = "set aside (rule book)" if strategy == "quarantine" else "decided by your add-on in a real run"
+            out[i] = {"reason": f"{parts['kind']}: {note}"}
+            continue
+        value = resolve(parts, policy, ctx, i)
+        if value is None:
+            out[i] = {"reason": f"{parts['kind']}: {strategy} found nothing to use (type some full dates too)"}
+        else:
+            out[i] = {"ok": True, "value": pd.Timestamp(value).date().isoformat(),
+                      "how": f"partial_date:{parts['kind']}:{strategy} (completed and marked)", "reason": None}
+    return out
 
 
 def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> FastAPI:
@@ -257,13 +298,16 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
             cfg.date_range.min, cfg.date_range.max = date(1900, 1, 1), date(2199, 12, 31)
         values = req.values[:200]
         dates, rule, reason = parse_dates(pd.Series(values, dtype="string"), cfg)
+        partial = completed_partial_dates(values, dates, reason, cfg)
         out = []
         for i, v in enumerate(values):
             ok = pd.notna(dates.iloc[i])
-            out.append({"input": v, "ok": bool(ok),
-                        "value": dates.iloc[i].date().isoformat() if ok else None,
-                        "how": None if pd.isna(rule.iloc[i]) else str(rule.iloc[i]),
-                        "reason": None if pd.isna(reason.iloc[i]) else str(reason.iloc[i])})
+            item = {"input": v, "ok": bool(ok), "value": dates.iloc[i].date().isoformat() if ok else None,
+                    "how": None if pd.isna(rule.iloc[i]) else str(rule.iloc[i]),
+                    "reason": None if pd.isna(reason.iloc[i]) else str(reason.iloc[i])}
+            if i in partial:                  # what a real run does with "Mar 2025" / "05/03"
+                item.update(partial[i])
+            out.append(item)
         return {"locale": cfg.locale_name, "date_order": cfg.locale.date_order,
                 "date_range": [str(cfg.date_range.min), str(cfg.date_range.max)], "results": out}
 

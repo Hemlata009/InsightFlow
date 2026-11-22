@@ -17,6 +17,7 @@ import pandas as pd
 from insightflow.config import DatasetConfig, normalize_header
 from insightflow.ingestion import SOURCE_ROW
 from insightflow.profiling.patterns import PLAIN_NUMBER, classify
+from insightflow.safety import formula_like
 
 from .dates import parse_dates
 from .numbers import NotConvertible, parse_foreign_amount, parse_number
@@ -88,6 +89,12 @@ def normalize(raw: pd.DataFrame, cfg: DatasetConfig, *,
         else:
             res.data[canon] = _booleans(text, rows, canon, res)
 
+    for col in [c for c in res.data.columns if c not in (SOURCE_ROW, "_overflow")]:
+        for i in res.data.index[formula_like(res.data[col])]:     # text a spreadsheet would run as a formula
+            res.flags.append({"stage": "normalize", "flag": "formula_like_text", "source_row": int(rows[i]),
+                              "column": col,
+                              "detail": "starts like a spreadsheet formula; kept as text, written with a leading ' "
+                                        "in CSV files so Excel shows it instead of running it"})
     if res.pending_conversions:
         _convert_foreign(res, cfg, rows)
     if "_overflow" in raw.columns:           # the reader kept extra trailing cells: flag those rows

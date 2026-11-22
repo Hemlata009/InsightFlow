@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import io
+import itertools
 import json
 import shutil
 import tempfile
@@ -31,6 +32,7 @@ from insightflow.ingestion.reader import OVERFLOW
 from insightflow.normalization import normalize
 from insightflow.normalization.partial_dates import resolve_partial_dates
 from insightflow.profiling import profile
+from insightflow.safety import protect_formulas
 
 STREAMABLE = {"csv", "jsonl", "parquet"}
 SAMPLE_BYTES = 256 * 1024
@@ -61,7 +63,8 @@ class ChunkedRun:
                           options=IngestOptions(check_memory=False, header_rows=self.cfg.policies.header_rows))
         self.meta, self.header_row = r.metadata, r.metadata.header_row
         self.columns = [c for c in r.metadata.columns if c != OVERFLOW]   # the header itself, without extras
-        self.first_data_line = int(r.data[SOURCE_ROW].min()) if len(r.data) else self.header_row + 1
+        first = [int(r.data[SOURCE_ROW].min())] if len(r.data) else [self.header_row + 1]
+        self.first_data_line = min(first + [b["source_row"] for b in r.bad_rows])   # a bad first row counts too
         self.overflow_rows = 0
         if self.fmt == "jsonl":
             self.columns = self._jsonl_keys()
@@ -96,13 +99,25 @@ class ChunkedRun:
             df[OVERFLOW] = pd.array([(overflow or {}).get(n) for n, _ in rows], dtype="string")
         return df
 
-    def _csv_chunks(self, size):
-        width = len(self.columns)
+    def _file_lines(self, skip):
         with open(self.path, encoding=self.meta.encoding, newline="") as f:
-            reader = csv.reader(f, delimiter=self.meta.delimiter)
-            rows, bad, over = [], [], {}
-            for record in reader:
-                line = reader.line_num
+            yield from itertools.islice(f, skip, None)
+
+    def _csv_chunks(self, size):
+        from insightflow.ingestion.reader import (
+            csv_error,
+            csv_records,
+            unclosed_quote_warning,
+        )
+        width = len(self.columns)
+        rows, bad, over, line = [], [], {}, 0
+        try:
+            for line, record, raw_line in csv_records(self._file_lines, self.meta.delimiter):
+                if record is None:                  # a quote never closed: set that row aside, read on
+                    if line >= self.first_data_line:
+                        bad.append({"source_row": line, "reason": "quote never closed", "values": [raw_line]})
+                        self.warnings.append(unclosed_quote_warning(line))
+                    continue
                 if line < self.first_data_line or not any(c.strip() for c in record):
                     continue
                 if len(record) > width and not any(c.strip() for c in record[width:]):
@@ -119,8 +134,10 @@ class ChunkedRun:
                 if len(rows) >= size:
                     yield self._frame(rows, over), bad
                     rows, bad, over = [], [], {}
-            if rows or bad:
-                yield self._frame(rows, over), bad
+        except csv.Error as e:
+            raise csv_error(e, line + 1, self.path.name) from e
+        if rows or bad:
+            yield self._frame(rows, over), bad
 
     def _jsonl_chunks(self, size):
         from insightflow.ingestion.reader import _json_text
@@ -146,6 +163,7 @@ class ChunkedRun:
 
     def _parquet_chunks(self, size):
         import pyarrow.parquet as pq
+
         from insightflow.ingestion.reader import _json_text
         n = 0
         for batch in pq.ParquetFile(self.path).iter_batches(batch_size=size):
@@ -267,7 +285,7 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                 if "_raw_values" not in q:
                     q["_raw_values"] = pd.NA
                 q[REASONS] = [reasons[r] for r in q[SOURCE_ROW]]
-                q = q.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})
+                q = protect_formulas(q.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT}))
                 q.to_csv(qf, index=False, header=not q_header_written, lineterminator="\n")
                 q_header_written = True
                 counts["quarantined"] += len(q)
@@ -283,7 +301,9 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                             s = counts["checks"].setdefault(f["check"], {"severity": f["severity"], "rows": 0})
                             s["rows"] += 1
                     if cfg.currency.reporting_currency:
-                        from insightflow.normalization.currency import add_reporting_columns
+                        from insightflow.normalization.currency import (
+                            add_reporting_columns,
+                        )
                         kept, _ = add_reporting_columns(kept, cfg)
                     out = to_output_frame(kept, [c for c, s in cfg.columns.items() if s.type == "datetime"])   # noqa: F841 (DuckDB reads "out" by name)
                     if i == 0 or not _table_exists(con, "stage"):
@@ -413,7 +433,6 @@ def _whole_file_group_values(run, cfg, size, spellings, pm=None) -> dict:
     """Second pass: for each fill_from_group column, the value every group (e.g. order) agrees on across
     the WHOLE file, so a blank in one piece can be filled from a row in another piece."""
     from insightflow.cleaning.cleaner import group_value_map
-
     from insightflow.normalization.partial_dates import PartialDateContext
 
     cols = {c: s.group_by for c, s in cfg.columns.items() if s.missing_policy == "fill_from_group"}

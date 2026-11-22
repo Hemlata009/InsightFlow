@@ -15,6 +15,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from insightflow.safety import unprotect
+
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE = ROOT / "data" / "sample" / "SALES_003"
 
@@ -24,6 +26,7 @@ def _read(p) -> pd.DataFrame:
 
 
 def _same(got: str, exp) -> bool:
+    got = unprotect(got)                  # CSV outputs write formula-like text as '=... (safety.py)
     if isinstance(exp, (int, float)):
         try:
             return abs(float(got) - float(exp)) < 1e-6

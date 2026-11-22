@@ -15,6 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 from insightflow.ingestion import SOURCE_ROW
+from insightflow.safety import protect_formulas
 
 SOURCE_ROW_OUT = "source_row"
 
@@ -42,7 +43,7 @@ def to_output_frame(df: pd.DataFrame, time_columns=()) -> pd.DataFrame:
     for c in out.columns:
         if pd.api.types.is_datetime64_any_dtype(out[c]):
             out[c] = out[c].dt.strftime("%Y-%m-%d %H:%M:%S" if c in time_columns else "%Y-%m-%d")
-    return out.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})
+    return protect_formulas(out.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT}))   # Excel-safe text (safety.py)
 
 
 def preserve_raw(src: Path, raw_root: Path, dataset_id: str, sha256: str) -> Path:
@@ -69,8 +70,10 @@ def write_run(*, data_root: Path, dataset_id: str, domain: str, cleaned: pd.Data
     qdir = data_root / "quarantine" / dataset_id
     paths = {
         "cleaned": _csv(processed / f"cleaned_{domain}.csv", to_output_frame(cleaned, time_columns)),
-        "quarantine": _csv(qdir / "quarantined_rows.csv", quarantine.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})),
-        "duplicates": _csv(qdir / "duplicates_removed.csv", duplicates.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT})),
+        "quarantine": _csv(qdir / "quarantined_rows.csv",
+                           protect_formulas(quarantine.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT}))),
+        "duplicates": _csv(qdir / "duplicates_removed.csv",
+                           protect_formulas(duplicates.rename(columns={SOURCE_ROW: SOURCE_ROW_OUT}))),
         "quality_report": _json(processed / "quality_report.json", quality_report),
         "cleaning_log": _json(processed / "cleaning_log.json", cleaning_log),
     }

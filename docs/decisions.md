@@ -70,3 +70,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-22 | Missing-value choices: rule book layer 4 (configs/choices/<ID>.yaml) edited from the web page; fixed values validated; marks summary in Run tab | [28](discussions/2026-11-22_28_missing-values-in-ui.md) |
 | 2026-11-22 | Phase 2 starts in a second Claude tab after a handover; KPI choices will follow the rule book + UI pattern | [29](discussions/2026-11-22_29_phase2-start-handover.md) |
 | 2026-11-22 | Full Phase 1 re-test: all checks pass; 4 issues found (giant cell crash, unclosed quote, formula injection, lab vs run partial dates) | [30](discussions/2026-11-22_30_phase1-full-retest.md) |
+| 2026-11-22 | Re-test fixes: 10M-char cells, unclosed quotes cost one row, formula-like text marked + written with leading ', lab completes partial dates | [31](discussions/2026-11-22_31_retest-fixes.md) |
