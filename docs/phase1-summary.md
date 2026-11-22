@@ -1,7 +1,7 @@
 # Phase 1: complete summary (everything that was done)
 
 Phase 1 = **Data Intake & Quality Engine**. Built 2026-11-21 → 2026-11-22. Final tag `phase1-v1.4`.
-42 commits · 5 version tags · 464 tests · ~10,200 lines (engine 4,489 · harness 511 · scripts 1,249 · web UI 881 ·
+45 commits · 5 version tags · 467 tests · ~10,200 lines (engine 4,489 · harness 511 · scripts 1,249 · web UI 881 ·
 tests 3,079) · 23 discussion notes · 59 logged decisions.
 
 ## 1. Project foundation
