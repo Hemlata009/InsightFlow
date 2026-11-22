@@ -22,7 +22,8 @@ CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
 ColumnType = Literal["string", "integer", "float", "date", "datetime", "boolean"]
 DATE_TYPES = ("date", "datetime")     # "date" keeps the calendar day only; "datetime" also keeps the time
 MissingPolicy = Literal["quarantine", "keep_and_flag", "fill_value", "derive", "fill_from_group", "impute",
-                        "placeholder"]
+                        "placeholder", "fill_down", "fill_up"]
+ESTIMATING_POLICIES = ("impute", "fill_down", "fill_up")   # the filled value is a guess, not a fact
 RuleKind = Literal["formula", "same_sign", "not_equal", "date_range"]
 Severity = Literal["quarantine", "flag"]
 
@@ -50,6 +51,8 @@ class ColumnSpec(Strict):
     group_by: list[str] = Field(default_factory=list)   # fill_from_group: copy the value other rows of the group agree on
     impute_method: Literal["median", "mean", "mode"] | None = None
     max_skew_for_mean: float = 1.0                       # mean imputation refused if |skewness| is above this
+    fill_limit: int | None = Field(default=None, ge=1)  # fill_down/fill_up: copy at most this many rows away
+    allow_estimates: bool = False   # money columns: impute/fill_down/fill_up only if the rule book says so (BR-9)
     description: str = ""
 
     @model_validator(mode="after")
@@ -66,6 +69,11 @@ class ColumnSpec(Strict):
                 raise ValueError(f"{self.name}: missing_policy impute needs impute_method")
             if self.impute_method in ("median", "mean") and self.type not in ("integer", "float"):
                 raise ValueError(f"{self.name}: {self.impute_method} imputation only applies to numeric columns")
+        if self.money and self.missing_policy in ESTIMATING_POLICIES and not self.allow_estimates:
+            raise ValueError(f"{self.name}: {self.missing_policy} would invent money amounts (BR-9); "
+                             "add allow_estimates: true to this column if the business really wants it")
+        if self.fill_limit is not None and self.missing_policy not in ("fill_down", "fill_up"):
+            raise ValueError(f"{self.name}: fill_limit only applies to fill_down / fill_up")
         if not self.nullable and self.missing_policy == "keep_and_flag":
             raise ValueError(f"{self.name}: conflict: not nullable but missing_policy keep_and_flag")
         if self.allowed_values is not None and not self.allowed_values:
@@ -180,8 +188,12 @@ class DuplicatePolicy(Strict):
 
 
 class Business(Strict):
+    """Plain yes/no business switches. Each names the column whose lower limit really enforces it, and the
+    loader refuses a rule book where the switch and that limit disagree (so the two can never drift apart)."""
     returns_allowed: bool = False
+    returns_column: str | None = None          # a negative value here = a return
     negative_profit_allowed: bool = True
+    profit_column: str | None = None           # a negative value here = a loss
 
 
 class CurrencyPolicy(Strict):
@@ -243,6 +255,18 @@ class DatasetConfig(Strict):
         unknown = set(self.duplicates.key) - names
         if unknown:
             raise ValueError(f"duplicate key uses unknown column(s): {sorted(unknown)}")
+        b = self.business
+        for switch, allowed, col in (("returns_allowed", b.returns_allowed, b.returns_column),
+                                     ("negative_profit_allowed", b.negative_profit_allowed, b.profit_column)):
+            if col is None:
+                continue
+            if col not in names:
+                raise ValueError(f"business: {switch} names unknown column {col!r}")
+            low = self.columns[col].min
+            if allowed != (low is None or low < 0):
+                need = f"{col} min below 0 (e.g. -1000)" if allowed else f"{col} min of 0 or more (e.g. 1)"
+                raise ValueError(f"business.{switch} is {str(allowed).lower()} but {col} min is {low}: "
+                                 f"they disagree; set {need}, or change the switch")
         if self.date_range.min > self.date_range.max:
             raise ValueError("date_range min is after max")
         seen: dict[str, str] = {}

@@ -82,7 +82,7 @@ def test_fill_order_date_from_the_order():
 
 # ---------------- statistical imputation (guarded and logged)
 def test_median_imputation_is_logged_with_distribution():
-    cfg = with_policy("Profit", missing_policy="impute", impute_method="median")
+    cfg = with_policy("Profit", missing_policy="impute", impute_method="median", allow_estimates=True)
     c = cleaned([{"Profit": "10"}, {"Profit": "20"}, {"Profit": "30"}, {"Profit": "NA"}], cfg)
     assert c.data["Profit"].tolist()[-1] == 20
     a = c.actions[0]
@@ -90,7 +90,7 @@ def test_median_imputation_is_logged_with_distribution():
 
 
 def test_mean_imputation_refused_on_skewed_data():
-    cfg = with_policy("Profit", missing_policy="impute", impute_method="mean")
+    cfg = with_policy("Profit", missing_policy="impute", impute_method="mean", allow_estimates=True)
     rows = [{"Profit": v} for v in ["1", "1", "2", "1", "2", "1", "5000"]] + [{"Profit": "NA"}]
     c = cleaned(rows, cfg)
     assert pd.isna(c.data["Profit"].iloc[-1])                           # not filled with ~715
@@ -98,7 +98,7 @@ def test_mean_imputation_refused_on_skewed_data():
 
 
 def test_mean_imputation_on_symmetric_data():
-    cfg = with_policy("Profit", missing_policy="impute", impute_method="mean")
+    cfg = with_policy("Profit", missing_policy="impute", impute_method="mean", allow_estimates=True)
     c = cleaned([{"Profit": "10"}, {"Profit": "20"}, {"Profit": "30"}, {"Profit": "-"}], cfg)
     assert c.data["Profit"].iloc[-1] == pytest.approx(20)
 

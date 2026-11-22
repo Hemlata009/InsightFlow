@@ -114,7 +114,17 @@ def clean(norm: NormalizeResult, cfg: DatasetConfig, *, dedupe: bool = True,
         elif policy == "impute":
             a, f = _impute(df, col, spec, missing)
             actions += a
-            flags += f
+            flags += f + _estimated(a, col)
+        elif policy in ("fill_down", "fill_up"):
+            a, nothing = _fill_nearby(df, col, spec, missing)
+            actions += a
+            flags += _estimated(a, col)
+            for r in nothing:                   # no row above/below to copy from
+                if spec.nullable:
+                    flags.append({"stage": "clean", "flag": "missing_value", "source_row": int(r), "column": col,
+                                  "detail": f"{policy}: no value to copy"})
+                else:
+                    quarantine([r], f"missing_required:{col}")
         elif policy == "derive":
             derived = _derive(df.loc[missing], spec.derive_expression, spec.derive_round)
             ok = derived.notna() & np.isfinite(derived.astype("float64").fillna(np.nan))
@@ -250,6 +260,36 @@ def _impute(df, col, spec, missing):
     after = _dist(df[col])
     detail = f"{method}={_plain(value)}; distribution before {before} after {after}"
     return [_act(f"imputed_{method}", r, col, None, _plain(value), detail=detail) for r in rows], []
+
+
+def _fill_nearby(df, col, spec, missing):
+    """fill_down: copy the nearest value ABOVE in the original file order; fill_up: the nearest BELOW.
+    With group_by, only rows of the same group count; fill_limit = how many rows away at most."""
+    order = df[SOURCE_ROW].sort_values(kind="stable").index
+    values = df.loc[order, col]
+    source = df.loc[order, SOURCE_ROW].where(values.notna())      # which row each value came from
+    how = "ffill" if spec.missing_policy == "fill_down" else "bfill"
+    if spec.group_by:
+        keys = group_keys(df.loc[order], spec.group_by)
+        filled = getattr(values.groupby(keys), how)(limit=spec.fill_limit)
+        came_from = getattr(source.groupby(keys), how)(limit=spec.fill_limit)
+    else:
+        filled = getattr(values, how)(limit=spec.fill_limit)
+        came_from = getattr(source, how)(limit=spec.fill_limit)
+    filled, came_from = filled.reindex(df.index), came_from.reindex(df.index)
+    ok = missing & filled.notna()
+    df.loc[ok, col] = filled[ok]
+    where = "above" if how == "ffill" else "below"
+    scope = f" with the same {'+'.join(spec.group_by)}" if spec.group_by else ""
+    actions = [_act(spec.missing_policy, df.at[i, SOURCE_ROW], col, None, _plain(filled[i]),
+                    detail=f"copied from row {int(came_from[i])} ({where}{scope})") for i in df.index[ok]]
+    return actions, list(df.loc[missing & ~ok, SOURCE_ROW])
+
+
+def _estimated(actions, col):
+    """Every guessed value is also marked for review (it is an estimate, not what the file said)."""
+    return [{"stage": "clean", "flag": "estimated_value", "source_row": int(a["source_row"]), "column": col,
+             "detail": f"{a['rule']}: {a.get('detail', '')}".strip(": ")} for a in actions]
 
 
 def _dist(s: pd.Series) -> dict:

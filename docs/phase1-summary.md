@@ -1,7 +1,7 @@
 # Phase 1: complete summary (everything that was done)
 
 Phase 1 = **Data Intake & Quality Engine**. Built 2026-11-21 → 2026-11-22. Final tag `phase1-v1.4`.
-45 commits · 5 version tags · 467 tests · ~10,200 lines (engine 4,489 · harness 511 · scripts 1,249 · web UI 881 ·
+47 commits · 5 version tags · 486 tests · ~10,200 lines (engine 4,489 · harness 511 · scripts 1,249 · web UI 881 ·
 tests 3,079) · 23 discussion notes · 59 logged decisions.
 
 ## 1. Project foundation
@@ -60,7 +60,7 @@ validated by Pydantic (typos and contradictions are refused). Business rules BR-
 ## 7. Quality evidence
 | Check | Result |
 |---|---|
-| Automated tests | **467 passing** |
+| Automated tests | **486 passing** |
 | Truth check (cleaned output vs truth) | 6/6 PASS on SALES_001 and SALES_002 |
 | Chaos check (row by row) | CSV 83/83 · Excel 84/84 · chunked 83/83 · 13% set aside |
 | Frozen baseline | results + SHA-256 of outputs reproduced exactly |

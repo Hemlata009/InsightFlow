@@ -142,7 +142,7 @@ def test_chunked_falls_back_for_whole_table_policies(tmp_path):
     d = config_copy(tmp_path, large_files="always", chunk_rows=100)
     f = d / "domains" / "sales.yaml"
     data = yaml.safe_load(f.read_text(encoding="utf-8"))
-    data["columns"]["Profit"].update(missing_policy="impute", impute_method="median")
+    data["columns"]["Profit"].update(missing_policy="impute", impute_method="median", allow_estimates=True)
     f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     p = tmp_path / "s.csv"
     p.write_text(HEADER + "\n" + ROW.format(i=1, p="Pen Set").replace(",20", ",") + "\n", encoding="utf-8")

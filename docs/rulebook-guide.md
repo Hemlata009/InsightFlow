@@ -59,8 +59,32 @@ lists are replaced as a whole. Example: SALES_002 sets `Quantity: {min: -1000}`;
 Each column can also have `aliases` (other header names accepted: `Qty`, `Sales Amount`, `Unit Price (INR)`…),
 `normalize_case`, `money`, `derive_expression` / `derive_round`, `group_by`, `placeholder`, `impute_method`, `description`.
 
-**Missing-value policies available:** `quarantine` · `keep_and_flag` · `fill_value` · `derive` · `fill_from_group` ·
-`impute` (median / mean / mode, mean refused on skewed data) · `placeholder`.
+### Missing-value choices (pick one per column with `missing_policy`)
+| Choice | YAML | Example |
+|---|---|---|
+| Set the row aside | `quarantine` | a sale with no product |
+| Keep blank (NA) and mark | `keep_and_flag` | unknown sub-category |
+| A fixed value: 0, a word, any value you write | `fill_value` + `fill_value: 0` / `"Unknown"` | Discount blank → 0 |
+| Work it out from a formula | `derive` + `derive_expression` | Sales = Quantity × Unit_Price × (1 − Discount) |
+| Copy from rows of the same group | `fill_from_group` + `group_by` | Region from the same State |
+| Mean / median / mode | `impute` + `impute_method` | typical value (mean refused on skewed data) |
+| Fill down (value from the row above) | `fill_down` (+ optional `group_by`, `fill_limit`) | report exports where a value is written once |
+| Fill up (value from the row below) | `fill_up` (+ optional `group_by`, `fill_limit`) | totals written on the last row of a block |
+| Temporary label | `placeholder` | `MISSING-ROW-49` |
+| Your own logic | a plugin (`after_normalize` / `after_clean` hook) | anything else |
+
+Rules: fill down/up follow the ORIGINAL file order; with `group_by` they never copy across groups; `fill_limit: 3`
+= at most 3 rows away. Every guessed value (mean/median/mode, fill down/up) is logged with where it came from and
+**marked** `estimated_value`. **Money columns (BR-9):** guessing (`impute`, `fill_down`, `fill_up`) is refused unless
+the column says `allow_estimates: true`; a fixed value (e.g. 0) is allowed. Big-file (chunked) mode can't use
+impute / fill down / fill up yet: those columns fall back to keep + mark, with a warning.
+
+```yaml
+columns:
+  Sub_Category: {missing_policy: fill_down, group_by: [Order_ID], fill_limit: 5}
+  Discount:     {missing_policy: fill_value, fill_value: 0}
+  Profit:       {missing_policy: impute, impute_method: median, allow_estimates: true}
+```
 
 ### Business rules (`rules:`)
 | Rule | Kind | Severity | Check |
@@ -107,7 +131,7 @@ Partial-date strategies (`policies.partial_dates`): missing day → `first_of_mo
 
 ## 7. Safety: mistakes in the rule book are refused at load time
 Unknown key (typo) · wrong type name · min > max · ranges on text columns · empty allowed list · a rule or duplicate key
-using an unknown column · a formula with anything but columns, numbers and + − × ÷ ( ) · a formula referring to itself ·
+using an unknown column · a business switch disagreeing with its column limit · guessing money without `allow_estimates` · a formula with anything but columns, numbers and + − × ÷ ( ) · a formula referring to itself ·
 `derive` without a formula · `fill_from_group` without `group_by` · mean/median on text · not-nullable + keep_and_flag ·
 unknown locale / time zone · bad plugin name · currency conversion without a date column · two columns claiming one alias.
 
@@ -125,10 +149,12 @@ plugins: [plugins.sales_sanity]                # switch on the example add-on
 ```
 New data area (e.g. HR): add `configs/domains/hr.yaml` + `configs/datasets/HR_001.yaml`; no engine code changes.
 
-## 9. Known weak spot
-The `business:` section (`returns_allowed`, `negative_profit_allowed`) is **documentation only**: the engine does
-not read it. The real switches are column limits (e.g. `Quantity: {min: -1000}` allows returns). If the two
-disagree, nothing warns. Options: remove the section, or make the loader check that they agree (recommended).
+## 9. Business switches (fixed 2026-11-22)
+`business.returns_allowed` / `negative_profit_allowed` each name their column (`returns_column: Quantity`,
+`profit_column: Profit`); the loader **refuses** a rule book where a switch and that column's `min` disagree:
+returns allowed ⇔ Quantity min below 0; losses allowed ⇔ Profit min empty or below 0. Example error:
+`business.returns_allowed is false but Quantity min is -1000: they disagree; set Quantity min of 0 or more (e.g. 1),
+or change the switch`. (Before this fix the switches were documentation only.)
 
 ## 10. Where to see it
 Web explorer → **Rule book** tab (the merged result for each dataset). Plain-language version of the sales rules:

@@ -5,8 +5,9 @@ through normalize -> clean -> validate exactly like the in-memory pipeline, and 
 staged in DuckDB (github.com/duckdb/duckdb, MIT) on disk with a memory cap. DuckDB then finds duplicates
 and key conflicts ACROSS all pieces and writes the final output, so RAM use stays flat.
 
-Not available in chunked mode (needs the whole table): fill_from_group and impute policies. Those
-columns fall back to keep+flag (or quarantine if not nullable), with a warning.
+Not available in chunked mode (need the whole table, or the next piece): impute, fill_down and fill_up.
+Those columns fall back to keep+flag (or quarantine if not nullable), with a warning. (fill_from_group works:
+group values are learned in a whole-file pre-pass.)
 """
 
 from __future__ import annotations
@@ -438,15 +439,16 @@ def _whole_file_group_values(run, cfg, size, spellings, pm=None) -> dict:
 
 
 def _without_whole_table_policies(cfg, warnings):
-    """impute needs every row at once; fall back safely in chunked mode (fill_from_group is supported)."""
-    changed = []
+    """impute / fill_down / fill_up need rows of other pieces; fall back safely in chunked mode."""
+    changed: dict[str, list[str]] = {}
     cfg = cfg.model_copy(deep=True)
     for name, spec in cfg.columns.items():
-        if spec.missing_policy == "impute":
+        if spec.missing_policy in ("impute", "fill_down", "fill_up"):
+            changed.setdefault(spec.missing_policy, []).append(name)
             spec.missing_policy = "keep_and_flag" if spec.nullable else "quarantine"
-            changed.append(name)
-    if changed:
-        warnings.append(f"chunked mode can't use impute for {changed}: blanks kept and flagged instead")
+            spec.fill_limit = None
+    for policy, cols in changed.items():
+        warnings.append(f"chunked mode can't use {policy} for {cols}: blanks kept and flagged instead")
     return cfg
 
 

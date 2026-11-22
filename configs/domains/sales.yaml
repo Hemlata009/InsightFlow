@@ -153,6 +153,8 @@ rules:
     params:
       column: Order_Date
 
-business:
+business:                          # yes/no switches; the loader refuses them if they disagree with the limits
   returns_allowed: false           # negative Quantity/Sales allowed? (dataset decides)
+  returns_column: Quantity         # ...enforced by Quantity's min (1 = no returns, -1000 = returns allowed)
   negative_profit_allowed: true    # losses are real
+  profit_column: Profit            # ...enforced by Profit's min (none = losses allowed)

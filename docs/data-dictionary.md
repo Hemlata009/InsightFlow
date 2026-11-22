@@ -53,7 +53,7 @@ exactly one **region**, and every **order** has exactly one **customer** and one
 | BR-6 | More than **20%** of rows set aside → status `needs_review` | a file that bad needs a person |
 | BR-7 | Unclear dates (01/02/2025) are read the dataset's way (India: day first; US: month first) | locale convention |
 | BR-8 | Amounts in another currency are refused; no reporting currency | no real need yet |
-| BR-9 | No statistical filling (median/mean) for sales numbers | would invent money |
+| BR-9 | No guessing of money amounts (mean/median/mode, fill down/up) unless a column says `allow_estimates: true`; enforced by the loader; guesses are always marked | would invent money |
 | BR-10 | Missing **Order_ID** → temporary ID `MISSING-ROW-<row>`, flagged (user decision) | the sale still counts |
 | BR-11 | Two minus signs (`(20-)`) → negative, flagged (user decision) | both marks mean negative |
 | BR-12 | Incomplete dates → `policies.partial_dates` (default: missing day → 1st of month, missing year → most common year), flagged; options: first/last/fixed/median/mean/mode day, previous/next row, fixed year, **plugin** | the business decides |
