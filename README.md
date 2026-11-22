@@ -30,6 +30,7 @@ chunks with DuckDB. Optional: ECB currency conversion, plugins (pluggy).
 
 - [Project overview](docs/project-overview.md): mission, vision, outcomes, architecture, tools, skills, phases
 - [Phase 1 plan](docs/phase1-plan.md): steps and the edge-case checklist
+- [Phase 1 summary](docs/phase1-summary.md): everything done in Phase 1, in one page
 - [Phase 1 baseline](docs/phase1-baseline.md): the frozen, verified results
 - [Data dictionary & business rules](docs/data-dictionary.md): columns, rules, locales, options
 - [Financial precision](docs/financial-precision.md): how money is calculated exactly
