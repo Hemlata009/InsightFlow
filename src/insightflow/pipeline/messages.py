@@ -25,6 +25,7 @@ NOTE_PATTERNS = [
     r"^extra column\(s\) not in the rule book (added|removed) since the last run",
     r"^switched to chunked mode",
     r"^large file \(",
+    r"^chunked mode: plugins .* run piece by piece",
 ]
 _NOTES = [re.compile(p) for p in NOTE_PATTERNS]
 

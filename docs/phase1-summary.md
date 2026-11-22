@@ -60,7 +60,7 @@ validated by Pydantic (typos and contradictions are refused). Business rules BR-
 ## 7. Quality evidence
 | Check | Result |
 |---|---|
-| Automated tests | **464 passing** (harness 20 · edge cases 150 · others 294) |
+| Automated tests | **467 passing** |
 | Truth check (cleaned output vs truth) | 6/6 PASS on SALES_001 and SALES_002 |
 | Chaos check (row by row) | CSV 83/83 · Excel 84/84 · chunked 83/83 · 13% set aside |
 | Frozen baseline | results + SHA-256 of outputs reproduced exactly |

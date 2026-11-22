@@ -38,6 +38,23 @@ be replaced later without touching the rest.
 | `extra_checks(data, cfg)` | with validation | add business checks; each result is `flag` or `quarantine` for a row |
 | `resolve_partial_date(column, text, parts, row, record, cfg)` | for "Mar 2025" / "05/03" when `partial_dates` strategy = `plugin` | decide the missing day/year your own way (e.g. the 15th, or the end of the financial quarter) |
 
+### Where the hooks are called (the "sockets" in the line)
+```
+read file ──► [after_ingest] ──► standardize ──► [after_normalize] ──► complete partial dates ──► [resolve_partial_date]
+          ──► clean ──► [after_clean] ──► validate + [extra_checks] ──► repair ──► outputs
+```
+- In-memory: `pipeline/phase1.py` (`_run`). Chunked (big files): `pipeline/chunked.py`, the same order **per piece**;
+  the whole-file pre-passes also apply `after_ingest` / `after_normalize` / `resolve_partial_date`, so group fills and
+  spellings match in-memory exactly (test: same output in both modes). In chunked mode a plugin sees one piece at a time.
+- `resolve_partial_date` is called from `normalization/partial_dates.py` when `policies.partial_dates` uses `plugin`.
+- No dataset has a plugin switched on by default; they are opt-in per dataset (`plugins: [...]`).
+
+### Why hooks
+1. **Keep the engine generic:** sales- or company-specific logic lives in a plugin, not in the core
+   (the core has a test that forbids domain column names).
+2. **Business choices the engine can't know:** e.g. the user's idea for partial dates ("use the 15th", "end of quarter").
+3. **Safe extension:** a plugin can't lose rows, every change is logged, and the exact plugin file is fingerprinted.
+
 **Safety rules for plugins:** a plugin may change values but never add, drop or reorder rows; a crash, a bad
 result or a row change stops the run with `plugin_error` (nothing half-written); every changed cell is logged
 (row, column, old, new); metadata records each plugin's file, SHA-256, version and hooks. Example:

@@ -24,6 +24,7 @@ from insightflow.audit.log import AuditLog
 from insightflow.audit.writer import SOURCE_ROW_OUT, _json, to_output_frame
 from insightflow.cleaning import REASONS, clean
 from insightflow.cleaning.repair import add_original_text, candidate_rows, repair_rows
+from insightflow.hooks import run_checks, run_transform
 from insightflow.ingestion import SOURCE_ROW, IngestionError, IngestOptions, read_file
 from insightflow.ingestion.reader import OVERFLOW
 from insightflow.normalization import normalize
@@ -156,7 +157,7 @@ class ChunkedRun:
 
 
 def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: list[str], fmt: str,
-                started, finish) -> dict:
+                started, finish, pm=None) -> dict:
     """Chunked counterpart of the in-memory pipeline. `finish(result, quality, log_path, ...)` writes metadata."""
     import duckdb
 
@@ -203,21 +204,32 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                     log.write(("" if first_log[0] else ",\n") + json.dumps(e, ensure_ascii=False, default=str))
                     first_log[0] = False
 
-            spellings = _whole_file_spellings(run, cfg, p.chunk_rows)
-            group_values, partial_ctx = _whole_file_group_values(run, cfg, p.chunk_rows, spellings)
+            spellings = _whole_file_spellings(run, cfg, p.chunk_rows, pm)
+            group_values, partial_ctx = _whole_file_group_values(run, cfg, p.chunk_rows, spellings, pm)
             for i, (raw, bad) in enumerate(run.chunks(p.chunk_rows)):
                 counts["rows_input"] += len(raw) + len(bad)
                 if before is None and len(raw):
                     before = profile(raw, cfg, run.meta)
                     before["sampled"] = f"first piece only ({len(raw):,} rows)"
+                plugin_log: list[dict] = []
+                original_raw = raw                          # the quarantine file keeps the ORIGINAL text
+                if pm is not None and len(raw):
+                    raw = run_transform(pm, "after_ingest", raw, cfg, plugin_log)
                 norm = normalize(raw, cfg, spellings=spellings) if len(raw) else None
                 if norm is not None:
-                    resolve_partial_dates(norm, cfg, None, contexts=partial_ctx)
+                    if pm is not None:
+                        norm.data = run_transform(pm, "after_normalize", norm.data, cfg, plugin_log)
+                    resolve_partial_dates(norm, cfg, pm, contexts=partial_ctx)
                 if norm is not None and norm.missing_required:
                     raise IngestionError("missing_required_columns",
                                          f"required column(s) not found: {norm.missing_required}")
                 cleaned = clean(norm, cfg, dedupe=False, group_values=group_values) if norm is not None else None
+                if cleaned is not None and pm is not None:
+                    cleaned.data = run_transform(pm, "after_clean", cleaned.data, cfg, plugin_log)
                 val = validate(cleaned.data, cfg) if cleaned is not None else None
+                if val is not None and pm is not None:
+                    val.failures += run_checks(pm, cleaned.data, cfg)
+                emit(plugin_log)
                 if val is not None and val.structural_errors:
                     raise IngestionError("schema_error", "; ".join(val.structural_errors))
 
@@ -242,13 +254,13 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
                         for r in fixed:
                             reasons.pop(r, None)
                         val.failures = [f for f in val.failures if f["source_row"] not in fixed]
-                        add_original_text(repair_log, raw, norm.header_changes)
+                        add_original_text(repair_log, original_raw, norm.header_changes)
                         emit(repair_log)
                         for e in repair_log:
                             counts["transformations"][e["rule"]] = counts["transformations"].get(e["rule"], 0) + 1
 
                 # quarantine: ORIGINAL text + reasons, appended piece by piece
-                q = raw.set_index(SOURCE_ROW).reindex(sorted(reasons)).reset_index()
+                q = original_raw.set_index(SOURCE_ROW).reindex(sorted(reasons)).reset_index()
                 for b in bad:
                     q.loc[q[SOURCE_ROW] == b["source_row"], "_raw_values"] = json.dumps(b["values"], ensure_ascii=False)
                 if "_raw_values" not in q:
@@ -360,7 +372,12 @@ def run_chunked(result: dict, input_path: Path, cfg, data_root: Path, warnings: 
     return finish(result, cfg, run.meta, paths)
 
 
-def _whole_file_spellings(run, cfg, size) -> dict[str, dict[str, str]]:
+def _plugged(raw, cfg, pm):
+    """Pre-passes see the data exactly as the main pass will (after the after_ingest plugins)."""
+    return run_transform(pm, "after_ingest", raw, cfg, []) if pm is not None and len(raw) else raw
+
+
+def _whole_file_spellings(run, cfg, size, pm=None) -> dict[str, dict[str, str]]:
     """First pass: count spellings of 'normalize_case' text columns over the WHOLE file, so every piece
     standardizes to the same most-common spelling (otherwise each piece would pick its own)."""
     from collections import Counter
@@ -373,6 +390,7 @@ def _whole_file_spellings(run, cfg, size) -> dict[str, dict[str, str]]:
     nulls = set(cfg.policies.null_markers)
     counters: dict[str, Counter] = {c: Counter() for c in wanted}
     for raw, _bad in run.chunks(size):
+        raw = _plugged(raw, cfg, pm)
         for col in raw.columns:
             canon = cfg.canonical_name(col)
             if canon in wanted:
@@ -390,7 +408,7 @@ def _whole_file_spellings(run, cfg, size) -> dict[str, dict[str, str]]:
     return out
 
 
-def _whole_file_group_values(run, cfg, size, spellings) -> dict:
+def _whole_file_group_values(run, cfg, size, spellings, pm=None) -> dict:
     """Second pass: for each fill_from_group column, the value every group (e.g. order) agrees on across
     the WHOLE file, so a blank in one piece can be filled from a row in another piece."""
     from insightflow.cleaning.cleaner import group_value_map
@@ -404,13 +422,15 @@ def _whole_file_group_values(run, cfg, size, spellings) -> dict:
     for raw, _bad in run.chunks(size):
         if not len(raw):
             continue
-        norm = normalize(raw, cfg, spellings=spellings)
+        norm = normalize(_plugged(raw, cfg, pm), cfg, spellings=spellings)
+        if pm is not None:
+            norm.data = run_transform(pm, "after_normalize", norm.data, cfg, [])
         for col in date_cols:
             if col in norm.data:
                 partial = {i["source_row"] for i in norm.issues
                            if i["column"] == col and i["reason"] in ("missing_day", "missing_year")}
                 ctxs[col].update(norm.data[col], norm.data[SOURCE_ROW], partial)
-        resolve_partial_dates(norm, cfg, None, contexts=ctxs)       # so group values see completed dates
+        resolve_partial_dates(norm, cfg, pm, contexts=ctxs)         # so group values see completed dates
         for col, group_by in cols.items():
             if col in norm.data and all(g in norm.data for g in group_by):
                 group_value_map(norm.data, col, group_by, into=maps[col], spec=cfg.columns[col])

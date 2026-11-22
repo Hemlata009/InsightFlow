@@ -66,14 +66,15 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     mode = cfg.policies.large_files
     fmt = SUPPORTED.get(input_path.suffix.lower())
     if mode == "always" and fmt in STREAMABLE:
-        return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt)
+        return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, pm=pm)
     try:
         raw = read_file(input_path, known_headers=set(cfg.header_map()),
                         options=IngestOptions(max_file_mb=cfg.policies.max_file_mb,
                                               header_rows=cfg.policies.header_rows))
     except IngestionError as e:
         if e.code in ("too_large", "insufficient_memory") and mode == "auto" and fmt in STREAMABLE:
-            return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason=e.message)
+            return _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason=e.message,
+                                pm=pm)
         result["error"] = {"code": e.code, "message": e.message}
         return _finish_failed(result, data_root, started)
     result["processing_mode"] = "in_memory"
@@ -225,11 +226,11 @@ def _run(result, input_path, dataset_id, cfg, data_root, config_dir, started) ->
     return result
 
 
-def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason: str = "") -> dict:
+def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, reason: str = "", pm=None) -> dict:
     """Large files: stream in pieces; see pipeline/chunked.py."""
     warnings = [f"switched to chunked mode: {reason}"] if reason else []
-    if cfg.plugins:
-        warnings.append(f"plugins {cfg.plugins} are not run in chunked mode")
+    if pm is not None:
+        warnings.append(f"chunked mode: plugins {cfg.plugins} run piece by piece (each call sees one piece)")
     prev_meta = data_root / "processed" / cfg.dataset_id / "metadata.json"
     prev_columns_meta = prev_meta.read_text(encoding="utf-8") if prev_meta.exists() else None
 
@@ -259,6 +260,7 @@ def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, r
                         if res["status"] == "completed":
                             res["status"] = "completed_with_warnings"
         metadata = _metadata(res, cfg, meta, started, str(raw_copy), config_dir)
+        metadata["plugins"] = plugin_info(pm)
         metadata["output_paths"] = {**paths, "metadata": str(data_root / "processed" / cfg.dataset_id / "metadata.json")}
         res["output_paths"] = metadata["output_paths"]
         out = data_root / "processed" / cfg.dataset_id / "metadata.json"
@@ -266,7 +268,7 @@ def _run_chunked(result, input_path, cfg, data_root, config_dir, started, fmt, r
         return res
 
     try:
-        return run_chunked(result, input_path, cfg, data_root, warnings, fmt, started, finish)
+        return run_chunked(result, input_path, cfg, data_root, warnings, fmt, started, finish, pm=pm)
     except IngestionError as e:
         result["error"] = {"code": e.code, "message": e.message}
         result["processing_mode"] = "chunked"

@@ -108,3 +108,83 @@ def test_bundled_example_plugin(tmp_path):
     res = run_phase1(src, "SALES_002", data_root=tmp_path / "data", config_dir=cfg_dir)
     assert any("plugins.sales_sanity:profit_exceeds_sales" in v for v in res["validation_errors"])
     assert "plugins" in sys.modules
+
+
+# ---------------- hook 5: resolve_partial_date, and all hooks in chunked (big-file) mode
+PARTIAL_PLUGIN = """
+    from datetime import date
+
+    @hookimpl
+    def resolve_partial_date(column, text, parts, row, record, cfg):
+        if parts["kind"] == "missing_day":                 # business rule: an unknown day = the 15th
+            return date(parts["year"], parts["month"], 15)
+        return None                                         # missing year: not decided -> set aside
+"""
+
+
+def _partial_setup(tmp_path, monkeypatch, large_files):
+    import yaml
+    monkeypatch.syspath_prepend(str(tmp_path))
+    name = f"plug_partial_{large_files}"
+    (tmp_path / f"{name}.py").write_text("from insightflow.hooks import hookimpl\n" + textwrap.dedent(PARTIAL_PLUGIN),
+                                         encoding="utf-8")
+    cfg_dir = tmp_path / f"cfg_{large_files}"
+    shutil.copytree(CONFIG_DIR, cfg_dir)
+    f = cfg_dir / "datasets" / "SALES_002.yaml"
+    data = yaml.safe_load(f.read_text(encoding="utf-8"))
+    data["plugins"] = [name]
+    data["policies"].update(large_files=large_files, chunk_rows=10,
+                            partial_dates={"missing_day": "plugin", "missing_year": "plugin"})
+    f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    src = tmp_path / "p.csv"
+    src.write_text(HEADER + "\n" + ROW.replace("05/03/2025", "Mar 2025") + "\n"
+                   + ROW.replace("IN-1", "IN-2").replace("05/03/2025", "05/03") + "\n", encoding="utf-8")
+    return run_phase1(src, "SALES_002", data_root=tmp_path / f"d_{large_files}", config_dir=cfg_dir)
+
+
+@pytest.mark.parametrize("large_files", ["never", "always"])
+def test_partial_date_hook_decides(tmp_path, monkeypatch, large_files):
+    res = _partial_setup(tmp_path, monkeypatch, large_files)
+    out = pd.read_csv(res["output_paths"]["cleaned"], encoding="utf-8-sig", dtype=str)
+    assert out["Order_Date"].tolist() == ["2025-03-15"]                   # the plugin chose the 15th
+    q = pd.read_csv(res["output_paths"]["quarantine"], encoding="utf-8-sig", dtype=str)
+    assert "missing_year" in q.loc[0, "_reasons"]                         # the plugin returned None -> set aside
+    log = pd.read_json(res["output_paths"]["cleaning_log"])
+    assert (log["rule"] == "partial_date:missing_day:plugin").any()
+
+
+def test_transform_and_check_plugins_also_run_in_chunked_mode(tmp_path, monkeypatch):
+    import yaml
+    monkeypatch.syspath_prepend(str(tmp_path))
+    (tmp_path / "plug_both.py").write_text(textwrap.dedent("""
+        from insightflow.hooks import hookimpl
+        from insightflow.ingestion import SOURCE_ROW
+
+        @hookimpl
+        def after_normalize(data, cfg):
+            data["Order_ID"] = data["Order_ID"].str.upper()
+            return data
+
+        @hookimpl
+        def extra_checks(data, cfg):
+            return [{"source_row": int(r), "check": "always", "severity": "flag"} for r in data[SOURCE_ROW]]
+    """), encoding="utf-8")
+    results = {}
+    for mode in ["never", "always"]:
+        cfg_dir = tmp_path / f"c_{mode}"
+        shutil.copytree(CONFIG_DIR, cfg_dir)
+        f = cfg_dir / "datasets" / "SALES_002.yaml"
+        data = yaml.safe_load(f.read_text(encoding="utf-8"))
+        data["plugins"] = ["plug_both"]
+        data["policies"].update(large_files=mode, chunk_rows=10)
+        f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+        src = tmp_path / "s.csv"
+        src.write_text(HEADER + "\n" + "\n".join(ROW.replace("IN-1", f"in-{i}") for i in range(25)) + "\n",
+                       encoding="utf-8")
+        res = run_phase1(src, "SALES_002", data_root=tmp_path / f"d_{mode}", config_dir=cfg_dir)
+        out = pd.read_csv(res["output_paths"]["cleaned"], encoding="utf-8-sig", dtype=str)
+        results[mode] = (out["Order_ID"].tolist(), res["rows_flagged"])
+        meta = pd.read_json(res["output_paths"]["metadata"], typ="series")
+        assert meta["plugins"][0]["name"] == "plug_both"
+    assert results["never"] == results["always"]
+    assert results["always"][0][0] == "IN-0" and results["always"][1] == 25
