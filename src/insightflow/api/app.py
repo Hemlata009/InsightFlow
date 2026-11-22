@@ -38,6 +38,7 @@ class LabRequest(BaseModel):
     dataset_id: str
     values: list[str]
     ambiguous_dates: str | None = None   # "use_locale" | "quarantine"
+    ignore_date_range: bool = False      # lab only: show how a value WOULD be read, whatever the dataset range
 
 
 def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> FastAPI:
@@ -195,9 +196,13 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
     @app.post("/api/lab/date")
     def lab_date(req: LabRequest):
         cfg = cfg_or_404(req.dataset_id)
-        if req.ambiguous_dates in ("use_locale", "quarantine"):
+        if req.ambiguous_dates in ("use_locale", "quarantine") or req.ignore_date_range:
             cfg = cfg.model_copy(deep=True)
+        if req.ambiguous_dates in ("use_locale", "quarantine"):
             cfg.policies.ambiguous_dates = req.ambiguous_dates
+        if req.ignore_date_range:
+            from datetime import date
+            cfg.date_range.min, cfg.date_range.max = date(1900, 1, 1), date(2199, 12, 31)
         values = req.values[:200]
         dates, rule, reason = parse_dates(pd.Series(values, dtype="string"), cfg)
         out = []

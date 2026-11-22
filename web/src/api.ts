@@ -69,7 +69,7 @@ export const api = {
       `/api/runs/${id}/log?offset=${p.offset}&limit=${p.limit}&stage=${p.stage}&rule=${encodeURIComponent(p.rule)}` +
         (p.row != null ? `&row=${p.row}` : ""),
     ),
-  lab: (kind: "number" | "date", body: { dataset_id: string; values: string[]; ambiguous_dates?: string }) =>
+  lab: (kind: "number" | "date", body: { dataset_id: string; values: string[]; ambiguous_dates?: string; ignore_date_range?: boolean }) =>
     req<{ locale: string; date_order?: string; date_range?: string[]; results: LabResult[] }>(`/api/lab/${kind}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

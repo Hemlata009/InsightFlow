@@ -89,3 +89,12 @@ def test_lab_date(client):
     strict = client.post("/api/lab/date", json={"dataset_id": "SALES_002", "values": ["05/03/2025"],
                                                 "ambiguous_dates": "quarantine"}).json()
     assert strict["results"][0]["reason"] == "ambiguous_day_month"
+
+
+def test_lab_date_can_ignore_the_dataset_range(client):
+    vals = ["45746", "45746.75", "99999", "1741132800", "20250305"]
+    strict = client.post("/api/lab/date", json={"dataset_id": "SALES_001", "values": vals}).json()
+    assert all(not x["ok"] and "outside" in x["reason"] for x in strict["results"])
+    loose = client.post("/api/lab/date", json={"dataset_id": "SALES_001", "values": vals,
+                                               "ignore_date_range": True}).json()
+    assert [x["value"] for x in loose["results"]] == ["2025-03-30", "2025-03-30", "2173-10-13", "2025-03-05", "2025-03-05"]

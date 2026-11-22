@@ -112,7 +112,7 @@ def parse_dates(values: pd.Series, cfg: DatasetConfig, *, keep_time: bool = Fals
         accept(_dateparser(text[todo], cfg), "dateparser", in_range_only=True)
 
     reason = pd.Series(pd.NA, index=values.index, dtype="string")
-    reason[todo] = _refusal_reasons(text[todo], p)
+    reason[todo] = _refusal_reasons(text[todo], p, cfg)
     reason[rule.eq("ambiguous_day_month")] = "ambiguous_day_month"
     rule[rule.eq("ambiguous_day_month")] = pd.NA
     return out, rule, reason
@@ -181,7 +181,7 @@ def _dateparser(left: pd.Series, cfg) -> pd.Series:
 _dateparser_cache: dict = {}
 
 
-def _refusal_reasons(left: pd.Series, p) -> pd.Series:
+def _refusal_reasons(left: pd.Series, p, cfg=None) -> pd.Series:
     r = pd.Series("unrecognised_date", index=left.index, dtype="string")
     assigned = pd.Series(False, index=left.index)
     checks = list(REFUSAL_PATTERNS)
@@ -189,12 +189,38 @@ def _refusal_reasons(left: pd.Series, p) -> pd.Series:
         checks.append(("compact_date_not_enabled", r"^(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$"))
     if not p.unix_timestamps:
         checks.append(("unix_timestamp_not_enabled", r"^\d{10}$|^\d{13}$|^\d{16}$"))
-    checks.append(("outside_date_range_or_not_a_date", r"^\d+(\.\d+)?$"))   # numbers that were no valid serial
     for name, rx in checks:
         hit = ~assigned & left.str.fullmatch(rx).fillna(False)
         r[hit] = name
         assigned |= hit
+    # A number that IS a valid date code but lands outside the business range: say what it would have been,
+    # e.g. "excel_serial_outside_date_range (=2025-03-30)" instead of a vague refusal.
+    for i in left.index[~assigned & left.str.fullmatch(r"\d+(\.\d+)?").fillna(False)]:
+        r[i] = _explain_number(left[i], p, cfg)
     return r
+
+
+def _explain_number(text: str, p, cfg) -> str:
+    rng = f" outside {cfg.date_range.min}..{cfg.date_range.max}" if cfg is not None else ""
+    digits = text.split(".")[0]
+    if p.compact_dates and len(text) == 8 and text.isdigit():
+        d = pd.to_datetime(text, format="%Y%m%d", errors="coerce")
+        if pd.notna(d):
+            return f"compact_date_outside_date_range (={d.date()}{rng})"
+    if p.unix_timestamps and text.isdigit() and len(text) in UNIX_UNITS:
+        unit = UNIX_UNITS[len(text)][0]
+        d = pd.to_datetime(int(text), unit=unit, errors="coerce")
+        if pd.notna(d):
+            return f"unix_timestamp_outside_date_range (={d:%Y-%m-%d %H:%M} UTC{rng})"
+    try:
+        n = float(text)
+    except ValueError:
+        n = None
+    if p.excel_serial_dates and n is not None and 1 <= n <= 200000 and len(digits) <= 6:
+        d = EXCEL_EPOCH + pd.to_timedelta(n, unit="D")
+        when = f"{d:%Y-%m-%d %H:%M}" if d != d.normalize() else f"{d.date()}"
+        return f"excel_serial_outside_date_range (={when}{rng})"
+    return "number_is_not_a_date"
 
 
 def _flag_ambiguous(text, todo, rule):

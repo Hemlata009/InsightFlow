@@ -65,7 +65,8 @@ def test_other_date_styles():
 def test_bad_dates_are_not_guessed():
     d, _, reason = _dates(["31/02/2025", "yesterday", "99999", None], IN)
     assert d == [None, None, None, None]
-    assert reason[:3] == ["unrecognised_date", "unrecognised_date", "outside_date_range_or_not_a_date"]
+    assert reason[:3] == ["unrecognised_date", "unrecognised_date",
+                          "excel_serial_outside_date_range (=2173-10-13 outside 2025-01-01..2026-06-30)"]
     assert pd.isna(reason[3])
 
 

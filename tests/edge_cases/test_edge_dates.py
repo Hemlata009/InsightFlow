@@ -138,3 +138,20 @@ def test_date_like_ids_stay_text():
     n = normalize(df, IN)
     assert list(n.data["Order_ID"]) == ["2025-03-05", "20250305"]
     assert str(n.data["Order_ID"].dtype) == "string"
+
+
+def test_date_numbers_outside_the_range_say_what_they_would_be():
+    """User test on SALES_001 (2014-2017): 2025 date numbers are refused, but the reason shows the reading."""
+    d, _, r = run(["45746", "45746.75", "99999", "1741132800", "20250305", "123456789012"], US)
+    assert d == [None] * 6
+    assert r[0] == "excel_serial_outside_date_range (=2025-03-30 outside 2014-01-01..2017-12-31)"
+    assert r[1] == "excel_serial_outside_date_range (=2025-03-30 18:00 outside 2014-01-01..2017-12-31)"
+    assert r[2] == "excel_serial_outside_date_range (=2173-10-13 outside 2014-01-01..2017-12-31)"
+    assert r[3] == "unix_timestamp_outside_date_range (=2025-03-05 00:00 UTC outside 2014-01-01..2017-12-31)"
+    assert r[4] == "compact_date_outside_date_range (=2025-03-05 outside 2014-01-01..2017-12-31)"
+    assert r[5] == "number_is_not_a_date"
+
+
+def test_same_date_numbers_accepted_where_the_range_fits():
+    d, rule, _ = run(["45746", "1741132800", "20250305"])                  # SALES_002: 2025-2026
+    assert d == ["2025-03-30", "2025-03-05", "2025-03-05"]

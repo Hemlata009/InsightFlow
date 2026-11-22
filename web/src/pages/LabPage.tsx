@@ -26,6 +26,7 @@ export default function LabPage({ dataset }: { dataset: Dataset }) {
   const [kind, setKind] = useState<Kind>("number");
   const [text, setText] = useState<string>(PRESETS.number["Indian style"].join("\n"));
   const [ambiguous, setAmbiguous] = useState("use_locale");
+  const [inRange, setInRange] = useState(true);
   const [results, setResults] = useState<LabResult[] | null>(null);
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
@@ -34,11 +35,18 @@ export default function LabPage({ dataset }: { dataset: Dataset }) {
     setError("");
     try {
       const list = values.split("\n").map((v) => v.trim()).filter(Boolean);
-      const r = await api.lab(kind, { dataset_id: dataset.dataset_id, values: list, ambiguous_dates: kind === "date" ? ambiguous : undefined });
+      const r = await api.lab(kind, {
+        dataset_id: dataset.dataset_id,
+        values: list,
+        ambiguous_dates: kind === "date" ? ambiguous : undefined,
+        ignore_date_range: kind === "date" ? !inRange : undefined,
+      });
       setResults(r.results);
       setInfo(
         kind === "date"
-          ? `Locale ${r.locale}: dates read as ${r.date_order}; Excel numbers only accepted inside ${r.date_range?.join(" … ")}`
+          ? inRange
+            ? `Locale ${r.locale}: dates read as ${r.date_order}. Date numbers (Excel, Unix, 20250305) are only accepted inside this dataset's range ${r.date_range?.join(" … ")}; untick the box to see how any value would be read.`
+            : `Locale ${r.locale}: dates read as ${r.date_order}. Showing how values WOULD be read, ignoring the dataset's date range (the pipeline still applies it).`
           : `Locale ${r.locale}: currency ${dataset.currency}`,
       );
     } catch (e) {
@@ -74,6 +82,12 @@ export default function LabPage({ dataset }: { dataset: Dataset }) {
                 <option value="use_locale">read the locale way</option>
                 <option value="quarantine">refuse (set aside)</option>
               </select>
+            </label>
+          )}
+          {kind === "date" && (
+            <label className="row gap small">
+              <input type="checkbox" checked={inRange} onChange={(e) => setInRange(e.target.checked)} />
+              only accept dates inside this dataset's date range
             </label>
           )}
         </div>
