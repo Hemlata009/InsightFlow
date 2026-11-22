@@ -30,7 +30,7 @@
 - 2026-11-22: **Full Phase 1 re-test** ([30](discussions/2026-11-22_30_phase1-full-retest.md)) and its 4 fixes: giant cells, unclosed quotes, formula-like text, lab partial dates; 510 tests ([31](discussions/2026-11-22_31_retest-fixes.md))
 
 ## Current
-**Phase 1 finished** (tag `phase1-v1.4`). **Phase 2 design started** ([discussion 29](discussions/2026-11-22_29_phase2-start-handover.md)): KPI engine, EDA, charts. Still wanted from the user: one real business file; approval of BR-1..15
+**Phase 1 finished** (tag `phase1-v1.5`, pushed 2026-11-22). **Phase 2 design started** ([discussion 29](discussions/2026-11-22_29_phase2-start-handover.md)): KPI engine, EDA, charts. Still wanted from the user: one real business file; approval of BR-1..15
 
 ## Next
 Phase 2: automated analytics, EDA and KPI engine (after the review)
