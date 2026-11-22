@@ -32,6 +32,7 @@ chunks with DuckDB. Optional: ECB currency conversion, plugins (pluggy).
 - [Phase 1 plan](docs/phase1-plan.md): steps and the edge-case checklist
 - [Phase 1 summary](docs/phase1-summary.md): everything done in Phase 1, in one page
 - [Tools and hooks](docs/tools-and-hooks.md): every tool/GitHub project used, why, and how it helped
+- [Rule book guide](docs/rulebook-guide.md): every rule-book setting, how to change it, examples
 - [Phase 1 baseline](docs/phase1-baseline.md): the frozen, verified results
 - [Data dictionary & business rules](docs/data-dictionary.md): columns, rules, locales, options
 - [Financial precision](docs/financial-precision.md): how money is calculated exactly
