@@ -63,3 +63,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-22 | Phase 1 closed: tag phase1-v1.4, pushed to GitHub (private, Actions disabled) | [21](discussions/2026-11-22_21_phase1-closing-checks.md) |
 | 2026-11-22 | Phase 1 inventory written (docs/phase1-summary.md) to plan next milestones | [22](discussions/2026-11-22_22_phase1-full-list.md) |
 | 2026-11-22 | Date numbers stay range-checked; refusals now show the would-be date; lab can ignore the range | [23](discussions/2026-11-22_23_date-numbers-in-sales001.md) |
+| 2026-11-22 | Tools, GitHub projects and hooks documented with reasons (docs/tools-and-hooks.md) | [24](discussions/2026-11-22_24_tools-and-hooks.md) |
