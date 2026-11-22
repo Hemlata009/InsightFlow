@@ -101,3 +101,7 @@ th.reason, td.reason { color: var(--bad); white-space: normal; min-width: 260px;
 tr.ok td:nth-child(2) { color: var(--good); font-weight: 600; }
 tr.fail td:nth-child(2), tr.fail td:nth-child(3) { color: var(--bad); }
 code { background: var(--chip); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+.choice-form { background: rgba(127, 127, 127, 0.06); border-radius: 8px; padding: 12px; }
+.choice-form label { display: block; }
+.choice-form input:not([type="checkbox"]), .choice-form select { padding: 4px 6px; }

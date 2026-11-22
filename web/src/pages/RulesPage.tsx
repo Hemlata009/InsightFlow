@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { api, type Dataset } from "../api.ts";
+import MissingValues, { describeMissing } from "../components/MissingValues.tsx";
 
 export default function RulesPage({ dataset }: { dataset: Dataset }) {
   const [cfg, setCfg] = useState<any>(null);
+  const [saved, setSaved] = useState<Record<string, any>>({});
   const [error, setError] = useState("");
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     api.rules(dataset.dataset_id).then(setCfg).catch((e) => setError(e.message));
-  }, [dataset]);
+    api.choices(dataset.dataset_id).then((c) => setSaved(c.columns)).catch(() => setSaved({}));
+  }, [dataset, version]);
 
   if (error) return <div className="alert error">{error}</div>;
   if (!cfg) return <p className="muted">Loading…</p>;
@@ -21,8 +25,8 @@ export default function RulesPage({ dataset }: { dataset: Dataset }) {
       <section className="card">
         <h2>Rule book for {cfg.dataset_id}</h2>
         <p className="muted small">
-          Read-only view of <code>configs/</code> (default → domains/{cfg.domain}.yaml → datasets/{cfg.dataset_id}.yaml). To change a rule, edit the
-          YAML file. The program reads it on the next run.
+          The rule book in <code>configs/</code>: default.yaml → domains/{cfg.domain}.yaml → datasets/{cfg.dataset_id}.yaml → choices/{cfg.dataset_id}.yaml
+          (missing-value choices saved below). Other rules: edit the YAML files. Changes are used from the next run.
         </p>
         <div className="stats">
           <Info label="Locale" value={`${cfg.locale_name} · ${cfg.locale.description}`} />
@@ -33,6 +37,8 @@ export default function RulesPage({ dataset }: { dataset: Dataset }) {
           <Info label="Short forms" value={Object.keys(cfg.locale.magnitudes).join(", ")} />
         </div>
       </section>
+
+      <MissingValues datasetId={dataset.dataset_id} cfg={cfg} saved={saved} onSaved={() => setVersion((v) => v + 1)} />
 
       <section className="card">
         <h3>Columns</h3>
@@ -58,9 +64,10 @@ export default function RulesPage({ dataset }: { dataset: Dataset }) {
                   </td>
                   <td>{c.type}</td>
                   <td>{c.required ? "yes" : "no"}</td>
-                  <td className="mono">
-                    {c.missing_policy}
-                    {c.derive_expression && <div className="muted small">= {c.derive_expression}</div>}
+                  <td>
+                    {describeMissing(c)}
+                    {name in saved && <span className="chip">your choice</span>}
+                    {c.money && <div className="muted small">money{c.allow_estimates ? " · guesses allowed" : ""}</div>}
                   </td>
                   <td className="mono">{range(c)}</td>
                   <td>{c.allowed_values?.join(", ") ?? ""}</td>
@@ -90,6 +97,20 @@ export default function RulesPage({ dataset }: { dataset: Dataset }) {
               ))}
             </tbody>
           </table>
+          <h3>Business switches</h3>
+          <p className="small">
+            Returns allowed: <b>{cfg.business.returns_allowed ? "yes" : "no"}</b>
+            {cfg.business.returns_column && (
+              <span className="muted"> (enforced by {cfg.business.returns_column} min = {String(cfg.columns[cfg.business.returns_column]?.min ?? "none")})</span>
+            )}
+            <br />
+            Losses (negative profit) allowed: <b>{cfg.business.negative_profit_allowed ? "yes" : "no"}</b>
+            {cfg.business.profit_column && (
+              <span className="muted"> (enforced by {cfg.business.profit_column} min = {String(cfg.columns[cfg.business.profit_column]?.min ?? "none")})</span>
+            )}
+            <br />
+            <span className="muted">The rule book is refused if a switch and its limit disagree.</span>
+          </p>
           <h3>Duplicates</h3>
           <p className="small">
             Exact copies: <b>{cfg.duplicates.exact}</b> · business key: <b>{cfg.duplicates.key.join(" + ")}</b> · same key, different values:{" "}

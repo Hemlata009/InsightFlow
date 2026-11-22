@@ -67,3 +67,4 @@ One line per decision. Full reasoning is in the linked discussion file.
 | 2026-11-22 | Plugins run in chunked mode too (piece by piece, pre-passes included); resolve_partial_date hook tested | [25](discussions/2026-11-22_25_where-hooks-are-used.md) |
 | 2026-11-22 | Rule book fully documented (docs/rulebook-guide.md); weak spot found: business switches are documentation only | [26](discussions/2026-11-22_26_rulebook-explained.md) |
 | 2026-11-22 | Missing values: fill_down/fill_up added; all guesses marked; BR-9 money guard enforced; business switches must agree with column limits | [27](discussions/2026-11-22_27_missing-value-choices.md) |
+| 2026-11-22 | Missing-value choices: rule book layer 4 (configs/choices/<ID>.yaml) edited from the web page; fixed values validated; marks summary in Run tab | [28](discussions/2026-11-22_28_missing-values-in-ui.md) |

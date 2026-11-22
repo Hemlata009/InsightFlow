@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import uuid
 from datetime import datetime
@@ -336,6 +337,9 @@ def _config_fingerprint(config_dir: Path, dataset_id: str, domain: str) -> str:
     h = hashlib.sha256()
     for rel in ["default.yaml", "locales.yaml", f"domains/{domain}.yaml", f"datasets/{dataset_id}.yaml"]:
         h.update((config_dir / rel).read_bytes())
+    choices = config_dir / "choices" / f"{dataset_id}.yaml"          # layer 4 (only when it exists)
+    if choices.exists() and os.environ.get("INSIGHTFLOW_IGNORE_CHOICES") != "1":
+        h.update(choices.read_bytes())
     return h.hexdigest()
 
 

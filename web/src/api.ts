@@ -59,6 +59,14 @@ function form(datasetId: string, src: Source): FormData {
 export const api = {
   datasets: () => req<Dataset[]>("/api/datasets"),
   rules: (id: string) => req<any>(`/api/datasets/${id}/rules`),
+  choices: (id: string) => req<{ columns: Record<string, any>; file: string }>(`/api/datasets/${id}/choices`),
+  saveChoice: (id: string, column: string, settings: Record<string, unknown> | null) =>
+    req<{ columns: Record<string, any> }>(`/api/datasets/${id}/choices/${encodeURIComponent(column)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings }),
+    }),
+  marks: (id: string) => req<{ marks: Record<string, number> }>(`/api/runs/${id}/marks`),
   profile: (id: string, src: Source) => req<ProfileResponse>("/api/profile", { method: "POST", body: form(id, src) }),
   run: (id: string, src: Source) => req<RunResult>("/api/run", { method: "POST", body: form(id, src) }),
   latest: (id: string) => req<{ metadata: { result: RunResult }; quality_report: any }>(`/api/runs/${id}/latest`),

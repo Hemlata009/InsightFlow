@@ -108,7 +108,7 @@ export default function RunPage({ dataset }: { dataset: Dataset }) {
         {error && <div className="alert error">{error}</div>}
       </section>
 
-      {result && <Summary r={result} />}
+      {result && <Summary r={result} datasetId={dataset.dataset_id} />}
 
       {(hasTables || findings) && (
         <section className="card">
@@ -152,8 +152,12 @@ function Sub({ v, cur, set, label }: { v: View; cur: View; set: (v: View) => voi
   );
 }
 
-function Summary({ r }: { r: RunResult }) {
+function Summary({ r, datasetId }: { r: RunResult; datasetId: string }) {
   const changes = Object.entries(r.transformations_applied).sort((a, b) => b[1] - a[1]);
+  const [marks, setMarks] = useState<[string, number][]>([]);
+  useEffect(() => {
+    api.marks(datasetId).then((m) => setMarks(Object.entries(m.marks))).catch(() => setMarks([]));
+  }, [datasetId, r.run_id]);
   return (
     <section className="card">
       <div className="row gap between">
@@ -188,6 +192,24 @@ function Summary({ r }: { r: RunResult }) {
             </table>
           ) : (
             <p className="muted">Nothing needed changing.</p>
+          )}
+          <h3>What was marked for review</h3>
+          {marks.length ? (
+            <table className="compact">
+              <tbody>
+                {marks.map(([k, v]) => (
+                  <tr key={k}>
+                    <td className="mono">
+                      {k}
+                      {k === "estimated_value" && <span className="muted small"> (a guessed value: mean/median/mode, fill down/up)</span>}
+                    </td>
+                    <td className="num">{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="muted">Nothing was marked.</p>
           )}
         </div>
         <div>

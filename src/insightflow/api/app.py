@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from insightflow import __version__
-from insightflow.config import CONFIG_DIR, load_dataset_config
+from insightflow.config import CHOICE_KEYS, CONFIG_DIR, choices_path, load_dataset_config, read_choices, save_choices
 from insightflow.ingestion import IngestionError, read_file
 from insightflow.normalization import NotConvertible, parse_dates, parse_number
 from insightflow.pipeline.phase1 import DATA_ROOT, ROOT, run_phase1
@@ -32,6 +32,18 @@ TABLES = {"cleaned": ("processed", None), "quarantine": ("quarantine", "quaranti
 _ID = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 _run_lock = threading.Lock()
 NOT_DATA = {"answer_key.json"}     # sample folders also hold the answer key; it is not a data file
+
+
+class ChoiceRequest(BaseModel):
+    settings: dict | None = None         # None = remove this column's choice (back to the YAML layers)
+
+
+def _readable(e: Exception) -> str:
+    """Pydantic errors -> the plain message lines only."""
+    errors = getattr(e, "errors", None)
+    if callable(errors):
+        return "; ".join(str(x.get("msg", "")).removeprefix("Value error, ") for x in errors())
+    return str(e)
 
 
 class LabRequest(BaseModel):
@@ -104,6 +116,32 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
     def rules(dataset_id: str):
         return cfg_or_404(dataset_id).model_dump(mode="json")
 
+    # ------------------------------------------------------------ missing-value choices (rule book layer 4)
+    @app.get("/api/datasets/{dataset_id}/choices")
+    def get_choices(dataset_id: str):
+        cfg_or_404(dataset_id)
+        return {"columns": read_choices(config_dir, dataset_id), "allowed_settings": sorted(CHOICE_KEYS),
+                "file": str(choices_path(config_dir, dataset_id).relative_to(config_dir.parent)).replace("\\", "/")}
+
+    @app.put("/api/datasets/{dataset_id}/choices/{column}")
+    def put_choice(dataset_id: str, column: str, req: ChoiceRequest):
+        cfg_or_404(dataset_id)
+        if not _run_lock.acquire(timeout=1):
+            raise HTTPException(409, "a pipeline run is in progress; save again when it has finished")
+        try:
+            current = read_choices(config_dir, dataset_id)
+            if req.settings is None:
+                current.pop(column, None)
+            else:
+                current[column] = req.settings
+            try:
+                save_choices(dataset_id, current, config_dir)
+            except (ValueError, TypeError) as e:
+                raise HTTPException(400, f"not saved: {_readable(e)}") from None
+        finally:
+            _run_lock.release()
+        return get_choices(dataset_id)
+
     # ------------------------------------------------------------ actions
     @app.post("/api/profile")
     def run_profile(dataset_id: str = Form(...), sample: str | None = Form(None),
@@ -161,6 +199,20 @@ def create_app(data_root: Path = DATA_ROOT, config_dir: Path = CONFIG_DIR) -> Fa
         page = df.iloc[max(0, offset): offset + limit]
         return {"total": int(len(df)), "offset": offset, "columns": list(df.columns),
                 "rows": page.to_dict(orient="records")}
+
+    @app.get("/api/runs/{dataset_id}/marks")
+    def marks(dataset_id: str):
+        """What the latest run marked for review, counted by reason (from the change log)."""
+        cfg_or_404(dataset_id)
+        p = processed(dataset_id) / "cleaning_log.json"
+        if not p.exists():
+            raise HTTPException(404, "no run yet for this dataset")
+        counts: dict[str, int] = {}
+        for e in json.loads(p.read_text(encoding="utf-8")):
+            if e.get("kind") == "flag":
+                k = str(e.get("rule") or "other")
+                counts[k] = counts.get(k, 0) + 1
+        return {"marks": dict(sorted(counts.items(), key=lambda kv: -kv[1]))}
 
     @app.get("/api/runs/{dataset_id}/log")
     def log(dataset_id: str, offset: int = 0, limit: int = 50, stage: str = "", rule: str = "",

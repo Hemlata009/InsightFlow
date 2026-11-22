@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -84,6 +85,17 @@ class ColumnSpec(Strict):
             raise ValueError(f"{self.name}: min {self.min} > max {self.max}")
         if self.missing_policy == "fill_value" and self.fill_value is None:
             raise ValueError(f"{self.name}: missing_policy fill_value needs fill_value")
+        if self.missing_policy == "fill_value":
+            v = self.fill_value
+            if self.allowed_values is not None and str(v) not in self.allowed_values:
+                raise ValueError(f"{self.name}: fill_value {v!r} is not one of the allowed values {self.allowed_values}")
+            if self.type in ("integer", "float"):
+                try:
+                    num = float(v)
+                except (TypeError, ValueError):
+                    raise ValueError(f"{self.name}: fill_value {v!r} is not a number") from None
+                if (self.min is not None and num < self.min) or (self.max is not None and num > self.max):
+                    raise ValueError(f"{self.name}: fill_value {v!r} is outside {self.min} … {self.max}")
         if (self.min is not None or self.max is not None) and self.type not in ("integer", "float"):
             raise ValueError(f"{self.name}: min/max only apply to numeric columns")
         return self
@@ -316,10 +328,63 @@ def _read(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def load_dataset_config(dataset_id: str, config_dir: Path = CONFIG_DIR) -> DatasetConfig:
+# ---------------------------------------------------------------- layer 4: choices saved from the web page
+# configs/choices/<ID>.yaml holds ONLY missing-value choices per column (what to do with blank cells). It is
+# part of the rule book (merged last), so a run uses it exactly like the YAML layers. Set the environment
+# variable INSIGHTFLOW_IGNORE_CHOICES=1 to use the shipped rule book only (the test suite does this).
+CHOICE_KEYS = {"missing_policy", "fill_value", "impute_method", "max_skew_for_mean", "group_by", "fill_limit",
+               "placeholder", "allow_estimates"}
+
+
+def choices_path(config_dir: Path, dataset_id: str) -> Path:
+    return config_dir / "choices" / f"{dataset_id}.yaml"
+
+
+def read_choices(config_dir: Path, dataset_id: str) -> dict:
+    """{column: {setting: value}}; refuses anything that is not a missing-value setting."""
+    p = choices_path(config_dir, dataset_id)
+    if os.environ.get("INSIGHTFLOW_IGNORE_CHOICES") == "1" or not p.exists():
+        return {}
+    data = _read(p)
+    if set(data) - {"columns"}:
+        raise ValueError(f"{p.name}: only 'columns' is allowed in a choices file, got {sorted(set(data))}")
+    cols = data.get("columns") or {}
+    for col, spec in cols.items():
+        bad = set(spec or {}) - CHOICE_KEYS
+        if bad:
+            raise ValueError(f"{p.name}: {col}: only missing-value settings are allowed here, not {sorted(bad)}")
+    return {c: dict(s or {}) for c, s in cols.items()}
+
+
+def save_choices(dataset_id: str, columns: dict, config_dir: Path = CONFIG_DIR) -> DatasetConfig:
+    """Validate the whole rule book WITH these choices first; write the file only if it is valid."""
+    cfg = load_dataset_config(dataset_id, config_dir, choices=columns)
+    p = choices_path(config_dir, dataset_id)
+    if not columns:
+        p.unlink(missing_ok=True)
+        return cfg
+    p.parent.mkdir(parents=True, exist_ok=True)
+    text = ("# Layer 4 of the rule book: missing-value choices saved from the web page (Rule book tab).\n"
+            "# Only what to do with blank cells; everything else stays in the other layers. Safe to edit by hand.\n"
+            + yaml.safe_dump({"columns": columns}, allow_unicode=True, sort_keys=True))
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(p)
+    return cfg
+
+
+def load_dataset_config(dataset_id: str, config_dir: Path = CONFIG_DIR, choices: dict | None = None) -> DatasetConfig:
+    """choices: missing-value choices to use instead of configs/choices/<ID>.yaml (to validate before saving)."""
     dataset = _read(config_dir / "datasets" / f"{dataset_id}.yaml")
     domain = _read(config_dir / "domains" / f"{dataset['domain']}.yaml")
     merged = deep_merge(deep_merge(_read(config_dir / "default.yaml"), domain), dataset)
+    chosen = read_choices(config_dir, dataset_id) if choices is None else choices
+    for col, spec in chosen.items():
+        if col not in merged.get("columns", {}):
+            raise ValueError(f"choices: unknown column {col!r}")
+        if set(spec) - CHOICE_KEYS:
+            raise ValueError(f"choices: {col}: only missing-value settings are allowed, not {sorted(set(spec) - CHOICE_KEYS)}")
+    merged = deep_merge(merged, {"columns": chosen})
 
     locales = _read(config_dir / "locales.yaml")
     name = merged.pop("locale")

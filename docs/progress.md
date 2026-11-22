@@ -26,6 +26,7 @@
 - 2026-11-21: **Chaos dataset SALES_003**: 76 problems in one file, every row graded (CSV 81/81, Excel 82/82, chunked 81/81); found and fixed: an invalid value blocked group filling; 453 tests ([discussion 19](discussions/2026-11-21_19_chaos-dataset.md))
 - 2026-11-21: **Safe recovery**: chaos set-aside 38% → 13%; repair from formula, partial-date strategies + hook, dateparser, IST, placeholders, overflow, Excel arithmetic; 460 tests ([discussion 20](discussions/2026-11-21_20_recover-set-aside-rows.md))
 - 2026-11-22: **Phase 1 closing checks**: header_rows in the rule book, 600k rows 397 s → 82 s, ruff review, pushed; 461 tests; tag `phase1-v1.4` ([discussion 21](discussions/2026-11-22_21_phase1-closing-checks.md))
+- 2026-11-22: **Missing-value choices**: fill down/up, guesses marked, BR-9 money guard, business switches checked against limits ([27](discussions/2026-11-22_27_missing-value-choices.md)); rule book layer 4 `configs/choices/` edited from the web page, marks summary in the Run tab; 496 tests ([28](discussions/2026-11-22_28_missing-values-in-ui.md))
 
 ## Current
 **Phase 1 finished** (tag `phase1-v1.4`). Next: discuss Phase 2 (analytics, EDA, KPI engine). Still wanted from the user: one real business file; approval of BR-1..15

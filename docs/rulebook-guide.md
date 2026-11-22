@@ -9,8 +9,15 @@ run follows the new rule. Loader: `src/insightflow/config.py` (`load_dataset_con
 configs/default.yaml           Layer 1  general policies for ANY data (53 lines)
 configs/domains/sales.yaml     Layer 2  the sales columns, business rules, duplicate key (158 lines)
 configs/datasets/SALES_00x.yaml Layer 3 one dataset: country style, date range, allowed values, overrides
+configs/choices/SALES_00x.yaml  Layer 4 missing-value choices saved from the web page (only if you saved some)
 configs/locales.yaml           country styles: en_IN (India), en_US (USA), de_DE (Germany/Europe)
 ```
+**Layer 4 (choices):** written by the web page (Rule book tab → "Missing values"), safe to edit by hand. It may
+only contain missing-value settings per column (`missing_policy`, `fill_value`, `impute_method`,
+`max_skew_for_mean`, `group_by`, `fill_limit`, `placeholder`, `allow_estimates`); anything else is refused. A choice
+is saved only if the WHOLE rule book is still valid with it (e.g. a fixed value must be an allowed value and inside
+the limits). The run's `config_sha256` includes this file. The test suite ignores it
+(`INSIGHTFLOW_IGNORE_CHOICES=1`, set in `tests/conftest.py`), so saved choices never break the frozen baseline.
 Later layers win: dataset > domain > default. Inside a section only the keys you write are replaced (deep merge);
 lists are replaced as a whole. Example: SALES_002 sets `Quantity: {min: -1000}`; the domain's `max: 1000` stays.
 
@@ -73,6 +80,7 @@ Each column can also have `aliases` (other header names accepted: `Qty`, `Sales 
 | Temporary label | `placeholder` | `MISSING-ROW-49` |
 | Your own logic | a plugin (`after_normalize` / `after_clean` hook) | anything else |
 
+A fixed value is checked when saved: it must be one of the allowed values and inside min/max (numbers).
 Rules: fill down/up follow the ORIGINAL file order; with `group_by` they never copy across groups; `fill_limit: 3`
 = at most 3 rows away. Every guessed value (mean/median/mode, fill down/up) is logged with where it came from and
 **marked** `estimated_value`. **Money columns (BR-9):** guessing (`impute`, `fill_down`, `fill_up`) is refused unless
@@ -157,5 +165,7 @@ returns allowed ⇔ Quantity min below 0; losses allowed ⇔ Profit min empty or
 or change the switch`. (Before this fix the switches were documentation only.)
 
 ## 10. Where to see it
-Web explorer → **Rule book** tab (the merged result for each dataset). Plain-language version of the sales rules:
+Web explorer → **Rule book** tab: the merged result for each dataset, the **Missing values** editor (change /
+save / back to the original rule), the business switches and the limits that enforce them. **Run** tab →
+"What was marked for review" (counts by reason, e.g. `estimated_value`). Plain-language version of the sales rules:
 `docs/data-dictionary.md`.
